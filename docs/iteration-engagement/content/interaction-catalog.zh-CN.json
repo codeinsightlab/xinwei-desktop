@@ -1,0 +1,875 @@
+{
+  "schemaVersion": 1,
+  "locale": "zh-CN",
+  "status": "draft_copy_ready_for_implementation",
+  "disclaimer": "产品原创文案草案。公司、迟到、晚收工均是用户设定玩法和App操作情境，不是对现实考勤或制度的认定。",
+  "rules": {
+    "selection": "先匹配事件和上下文，再挑选变体；同一eventId只选一次并记住结果。",
+    "replyEffect": "choices只改变一次后续文案，不改变金额、记录或计时。",
+    "priority": "错误用明确中性提示；用户表达状态不好优先温和；回归、昨日明显晚收工优先于一般开工；金额事实独立显示。",
+    "businessActions": "RETURN近况、PENDING_END收尾、CATCHUP补算按钮由类型化业务代码实现，不执行任意JSON脚本。",
+    "privacy": "含金额变量时必须用privacyFallback或安全替代；事实区和辅助功能同时遮挡；不通过金额换算反推出金额。",
+    "timing": "只在合适事件触发；STATE_ENTER默认安静更新，不等于自动弹窗。",
+    "noRepeats": "同一事件幂等，常见事件避免最近3次相同变体；随机可注入测试种子。"
+  },
+  "variables": {
+    "graceMinutes": {
+      "type": "nonnegative_integer",
+      "sensitive": false
+    },
+    "lateMinutes": {
+      "type": "formatted_duration_in_minutes",
+      "sensitive": false,
+      "note": "含不足一分钟时不要误显示为准时；计费分钟另有字段。"
+    },
+    "deductionAmount": {
+      "type": "formatted_money",
+      "sensitive": true
+    },
+    "overtimeMinutes": {
+      "type": "formatted_duration_in_minutes",
+      "sensitive": false
+    }
+  },
+  "scenes": [
+    {
+      "id": "policy_none",
+      "event": "POLICY_SAVED",
+      "pose": "lucky",
+      "tone": "playful",
+      "eligibility": "用户主动保存默认不扣款规则，成功后展示一次。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "policy_none.1",
+          "text": "碰上好人家了，迟到还不扣钱。"
+        },
+        {
+          "id": "policy_none.2",
+          "text": "这公司能处，没跟闹钟一起针对你。"
+        },
+        {
+          "id": "policy_none.3",
+          "text": "行，至少进门不用先交钱。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "policy_none.reply.1",
+          "label": "也就这点好了",
+          "response": "懂，优点已经介绍完了。",
+          "effect": "copy_only"
+        },
+        {
+          "id": "policy_none.reply.2",
+          "label": "先低调一点",
+          "response": "懂了，这事不写进年终总结。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "policy_per_minute",
+      "event": "POLICY_SAVED",
+      "pose": "annoyed",
+      "tone": "playful",
+      "eligibility": "用户成功启用按分钟扣减；只吐槽用户设定的玩法，不认定真实雇主制度。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "policy_per_minute.1",
+          "text": "发工资按月，扣工资按分钟。精明。"
+        },
+        {
+          "id": "policy_per_minute.2",
+          "text": "一分钟也不放过？这算盘拨得我耳鸣。"
+        },
+        {
+          "id": "policy_per_minute.3",
+          "text": "班还没上，计价器先开了。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "policy_per_minute.reply.1",
+          "label": "这规则真会算",
+          "response": "记下了。咱们把数字算清，别再多吃一份亏。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "policy_grace",
+      "event": "POLICY_SAVED",
+      "pose": "lucky",
+      "tone": "playful",
+      "eligibility": "保存非零宽限，且此事件没有更重要的规则变更反馈。",
+      "variables": [
+        "graceMinutes"
+      ],
+      "messages": [
+        {
+          "id": "policy_grace.1",
+          "text": "公司和被窝，各退了 {graceMinutes} 分钟。"
+        },
+        {
+          "id": "policy_grace.2",
+          "text": "给闹钟留了 {graceMinutes} 分钟面子。"
+        },
+        {
+          "id": "policy_grace.3",
+          "text": "缓冲区设好了，但不用每天都去测试边界。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "policy_deduction_removed",
+      "event": "POLICY_SAVED",
+      "pose": "welcome",
+      "tone": "playful",
+      "eligibility": "从有扣减改为不扣减，仅描述App设置变化。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "policy_deduction_removed.1",
+          "text": "改好了。在这里，先对自己好一点。"
+        },
+        {
+          "id": "policy_deduction_removed.2",
+          "text": "这项扣减，下一个未开启的工作日起不收了。"
+        },
+        {
+          "id": "policy_deduction_removed.3",
+          "text": "设置改好了，计数器少一项让人皱眉的工作。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "start_early",
+      "event": "DAY_STARTED",
+      "pose": "working",
+      "tone": "playful",
+      "eligibility": "首次开工早于第一个计划区间。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "start_early.1",
+          "text": "人先到位，计数器等到点再开张。"
+        },
+        {
+          "id": "start_early.2",
+          "text": "来早了，但我不会偷偷给你加班。"
+        },
+        {
+          "id": "start_early.3",
+          "text": "电脑提前营业，工资按约定开张。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "start_on_time",
+      "event": "DAY_STARTED",
+      "pose": "working",
+      "tone": "playful",
+      "eligibility": "未晚来、没有优先级更高的回归或关怀事件。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "start_on_time.1",
+          "text": "人到了，精神稍后抵达也行。"
+        },
+        {
+          "id": "start_on_time.2",
+          "text": "今天准时进场，先给闹钟记一功。"
+        },
+        {
+          "id": "start_on_time.3",
+          "text": "开工。今天也来看看时间能换多少。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "start_on_time.reply.1",
+          "label": "人到了就行",
+          "response": "够了，剩下的咱们慢慢来。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "start_late_free",
+      "event": "DAY_STARTED",
+      "pose": "lucky",
+      "tone": "playful",
+      "eligibility": "用户晚来且规则NONE；事实区保留按设置不扣减说明。",
+      "variables": [
+        "lateMinutes"
+      ],
+      "messages": [
+        {
+          "id": "start_late_free.1",
+          "text": "晚来 {lateMinutes} 分钟，工资照算。这波薅到了。"
+        },
+        {
+          "id": "start_late_free.2",
+          "text": "闹钟输了，工资没输。"
+        },
+        {
+          "id": "start_late_free.3",
+          "text": "碰上好人家了，今天晚点开张也不扣钱。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "start_late_free.reply.1",
+          "label": "低调低调",
+          "response": "懂了，这事不写进年终总结。",
+          "effect": "copy_only"
+        },
+        {
+          "id": "start_late_free.reply.2",
+          "label": "也就这点好了",
+          "response": "懂，优点已经介绍完了。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "start_late_paid",
+      "event": "DAY_STARTED",
+      "pose": "annoyed",
+      "tone": "playful",
+      "eligibility": "已保存一次扣减且扣减大于0；同一事件不可重复扣款。",
+      "variables": [
+        "deductionAmount"
+      ],
+      "messages": [
+        {
+          "id": "start_late_paid.1",
+          "text": "天崩开局，班还没上，先消费 {deductionAmount}。"
+        },
+        {
+          "id": "start_late_paid.2",
+          "text": "咖啡还没喝，钱先没了。"
+        },
+        {
+          "id": "start_late_paid.3",
+          "text": "别人进门开工，你今天先买了张入场券。"
+        }
+      ],
+      "privacyFallback": "今天先交了点入场费，数额我替你挡着。",
+      "choices": [
+        {
+          "id": "start_late_paid.reply.1",
+          "label": "这班非上不可吗",
+          "response": "我支持你，账单暂时持保留意见。",
+          "effect": "copy_only"
+        },
+        {
+          "id": "start_late_paid.reply.2",
+          "label": "先把钱挣回来",
+          "response": "行，计数器开了，我陪你盯着。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "start_within_grace",
+      "event": "DAY_STARTED",
+      "pose": "lucky",
+      "tone": "playful",
+      "eligibility": "晚来但完全在宽限内，规则为PER_MINUTE。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "start_within_grace.1",
+          "text": "擦边进场，一分没少。"
+        },
+        {
+          "id": "start_within_grace.2",
+          "text": "今天这几分钟，缓冲区替你接住了。"
+        },
+        {
+          "id": "start_within_grace.3",
+          "text": "还在宽限里。闹钟和钱包，至少保住一个。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "start_within_grace.reply.1",
+          "label": "一切尽在掌握",
+          "response": "行，我假装没看见你跑过来。",
+          "effect": "copy_only"
+        },
+        {
+          "id": "start_within_grace.reply.2",
+          "label": "纯属命大",
+          "response": "今天的好运，先用在这里了。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "start_after_paid_day",
+      "event": "DAY_STARTED",
+      "pose": "lucky",
+      "tone": "playful",
+      "eligibility": "最近有确认记录的前一计划工作日发生过扣减，今天未扣减；没有断档或更高优先级情境。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "start_after_paid_day.1",
+          "text": "今天零元入场，舒服。"
+        },
+        {
+          "id": "start_after_paid_day.2",
+          "text": "昨天交过的入场费，今天不用续。"
+        },
+        {
+          "id": "start_after_paid_day.3",
+          "text": "今天没给计价器发挥的机会。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "start_after_late_end",
+      "event": "DAY_STARTED",
+      "pose": "tired",
+      "tone": "gentle",
+      "eligibility": "前一计划工作日有已确认结束记录，晚收工不少于60分钟。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "start_after_late_end.1",
+          "text": "昨天走得挺晚，今天就别跟昨天比了。"
+        },
+        {
+          "id": "start_after_late_end.2",
+          "text": "上次已经多待了一阵，今天争取早点散场。"
+        },
+        {
+          "id": "start_after_late_end.3",
+          "text": "昨天的电脑合得有点晚，今天给自己留点时间。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "start_after_late_end.reply.1",
+          "label": "今天争取准点",
+          "response": "行，我负责记着，不负责催命。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "working",
+      "event": "STATE_ENTER",
+      "pose": "working",
+      "tone": "playful",
+      "eligibility": "工作区间的安静基础状态，仅状态切换，不强制弹窗。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "working.1",
+          "text": "窝囊费累积中。"
+        },
+        {
+          "id": "working.2",
+          "text": "人慢慢来，数字慢慢涨。"
+        },
+        {
+          "id": "working.3",
+          "text": "先忙你的，我在这里数着。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "break",
+      "event": "STATE_ENTER",
+      "pose": "resting",
+      "tone": "playful",
+      "eligibility": "午休状态，金额保持不变，不假装仍在增长。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "break.1",
+          "text": "窝囊费暂停营业，人可以暂时离线。"
+        },
+        {
+          "id": "break.2",
+          "text": "午休到了，脑子也该轮休。"
+        },
+        {
+          "id": "break.3",
+          "text": "这会儿不催，连计数器都歇着。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "after_schedule",
+      "event": "STATE_ENTER",
+      "pose": "tired",
+      "tone": "playful",
+      "eligibility": "已到约定下班时间仍ACTIVE；只改变小窗状态，不抢焦点。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "after_schedule.1",
+          "text": "工资到站了，人还没下车？"
+        },
+        {
+          "id": "after_schedule.2",
+          "text": "到了约定下班时间，后面只记时长，不加钱。"
+        },
+        {
+          "id": "after_schedule.3",
+          "text": "今天的计数到头了，剩下的时间也挺贵。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "end_on_time",
+      "event": "DAY_ENDED",
+      "pose": "offduty",
+      "tone": "playful",
+      "eligibility": "收工时刻距约定下班不超过5分钟且不早于约定下班；实际分钟仍如实显示。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "end_on_time.1",
+          "text": "电脑可以下班，你也可以。"
+        },
+        {
+          "id": "end_on_time.2",
+          "text": "今天准点散场，生活接班。"
+        },
+        {
+          "id": "end_on_time.3",
+          "text": "到点撤退，也是一种执行力。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "end_on_time.reply.1",
+          "label": "明天见",
+          "response": "明天见，今天不加戏了。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "end_early",
+      "event": "DAY_ENDED",
+      "pose": "offduty",
+      "tone": "playful",
+      "eligibility": "有效收工时间早于约定下班，不惩罚、不羞辱。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "end_early.1",
+          "text": "今天先到这里，剩下的时间归你。"
+        },
+        {
+          "id": "end_early.2",
+          "text": "收工。生活那边还有你的席位。"
+        },
+        {
+          "id": "end_early.3",
+          "text": "今天提前散场，也不用向我解释。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "end_overtime",
+      "event": "DAY_ENDED",
+      "pose": "tired",
+      "tone": "gentle",
+      "eligibility": "已确认晚收工超过5分钟，记录不增加工资。",
+      "variables": [
+        "overtimeMinutes"
+      ],
+      "messages": [
+        {
+          "id": "end_overtime.1",
+          "text": "今天又多待了 {overtimeMinutes} 分钟。记下了，不拿它当勋章。"
+        },
+        {
+          "id": "end_overtime.2",
+          "text": "晚了 {overtimeMinutes} 分钟，今天到这里，别续杯了。"
+        },
+        {
+          "id": "end_overtime.3",
+          "text": "这段时间不会多算工资，但值得留给你自己看见。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": [
+        {
+          "id": "end_overtime.reply.1",
+          "label": "终于结束了",
+          "response": "电脑合上，今天就不回放了。",
+          "effect": "copy_only"
+        }
+      ]
+    },
+    {
+      "id": "end_repeated_overtime",
+      "event": "DAY_ENDED",
+      "pose": "tired",
+      "tone": "gentle",
+      "eligibility": "最近连续3个计划工作日均已确认结束且各晚收工不少于60分钟；缺失日打断。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "end_repeated_overtime.1",
+          "text": "最近几次都收得有点晚，明天争取早点散场。"
+        },
+        {
+          "id": "end_repeated_overtime.2",
+          "text": "这几天都没准点走，今天先把电脑合上吧。"
+        },
+        {
+          "id": "end_repeated_overtime.3",
+          "text": "连续几次都多待了一阵，我只记着，不给熬夜发奖。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "pending_end",
+      "event": "RECOVERY",
+      "pose": "neutral",
+      "tone": "neutral",
+      "eligibility": "存在PENDING_END旧日。业务收尾按钮由业务UI提供，此文案不得自动生成假结束。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "pending_end.1",
+          "text": "昨天忘了说再见？没关系，今天接上。"
+        },
+        {
+          "id": "pending_end.2",
+          "text": "昨天那一页还没合上，要顺手收个尾吗？"
+        },
+        {
+          "id": "pending_end.3",
+          "text": "没收到昨天的收工信号，不代表你真待了一整夜。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_one",
+      "event": "RETURN",
+      "pose": "welcome",
+      "tone": "playful",
+      "eligibility": "漏1个已过去计划工作日；不含休息日或启用前日期。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_one.1",
+          "text": "昨天没碰面，今天接上。"
+        },
+        {
+          "id": "return_one.2",
+          "text": "上回那页没翻也没事，今天重新开张。"
+        },
+        {
+          "id": "return_one.3",
+          "text": "欢迎回来，这里没有迟来的作业。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_gap",
+      "event": "RETURN",
+      "pose": "welcome",
+      "tone": "playful",
+      "eligibility": "漏2～4个计划工作日，可选择近况或直接开工。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_gap.1",
+          "text": "这两天没碰面，最近还好吗？"
+        },
+        {
+          "id": "return_gap.2",
+          "text": "几天没见，最近是忙着呢，还是歇一歇？"
+        },
+        {
+          "id": "return_gap.3",
+          "text": "回来啦。想说两句就说，不想说就开工。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_long",
+      "event": "RETURN",
+      "pose": "welcome",
+      "tone": "playful",
+      "eligibility": "漏5个及以上计划工作日，不计算用户健康或真实出勤。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_long.1",
+          "text": "好久不见。先别急，作息还是原来那套吗？"
+        },
+        {
+          "id": "return_long.2",
+          "text": "欢迎回来。旧设置还在，今天可以重新开张。"
+        },
+        {
+          "id": "return_long.3",
+          "text": "来啦，这里不用补交缺席说明。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_busy",
+      "event": "CONTEXT_REPLY",
+      "pose": "working",
+      "tone": "playful",
+      "eligibility": "用户主动选最近有点忙。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_busy.1",
+          "text": "看来不是没上班，是忙得没空看自己赚了多少。"
+        },
+        {
+          "id": "return_busy.2",
+          "text": "忙成这样，还记得来看看我，挺够意思。"
+        },
+        {
+          "id": "return_busy.3",
+          "text": "懂了，最近没空数钱。今天我来盯着。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_rest",
+      "event": "CONTEXT_REPLY",
+      "pose": "resting",
+      "tone": "playful",
+      "eligibility": "用户主动选休息了一阵。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_rest.1",
+          "text": "挺好，那几天留给生活，不用来我这儿补作业。"
+        },
+        {
+          "id": "return_rest.2",
+          "text": "休息也是正经事，这里不追究。"
+        },
+        {
+          "id": "return_rest.3",
+          "text": "歇够了再来，计数器又不会跑。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_unwell",
+      "event": "CONTEXT_REPLY",
+      "pose": "welcome",
+      "tone": "gentle",
+      "eligibility": "用户主动选状态不太好；仅激活当日温和语气，不持久化健康描述。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_unwell.1",
+          "text": "那今天不贫了。你按自己的节奏来。"
+        },
+        {
+          "id": "return_unwell.2",
+          "text": "先照顾自己，今天不用跟谁比。"
+        },
+        {
+          "id": "return_unwell.3",
+          "text": "我在这儿，不催你，也不追问。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "return_forgot",
+      "event": "CONTEXT_REPLY",
+      "pose": "lucky",
+      "tone": "playful",
+      "eligibility": "用户主动选忘了打开，非状态不好。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "return_forgot.1",
+          "text": "还以为你发财了，不用看这点工资了。"
+        },
+        {
+          "id": "return_forgot.2",
+          "text": "放心，我没把你报给人事。"
+        },
+        {
+          "id": "return_forgot.3",
+          "text": "没事，咱俩都不是靠记性吃饭的。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "catchup_offer",
+      "event": "CATCHUP_OFFER",
+      "pose": "welcome",
+      "tone": "neutral",
+      "eligibility": "存在本月可补算空白日期；具体业务按钮和确认预览由业务UI提供。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "catchup_offer.1",
+          "text": "漏看的这几天，要按作息补上工资进度吗？"
+        },
+        {
+          "id": "catchup_offer.2",
+          "text": "那几页空白，要补个估算，还是从今天继续？"
+        },
+        {
+          "id": "catchup_offer.3",
+          "text": "可以补看，不用补作业。你说了算。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "catchup_done",
+      "event": "CATCHUP_COMMITTED",
+      "pose": "welcome",
+      "tone": "playful",
+      "eligibility": "显式补算持久化成功；不表示真实到岗或薪资到账。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "catchup_done.1",
+          "text": "补的是进度，不是补班。放心。"
+        },
+        {
+          "id": "catchup_done.2",
+          "text": "估算补好了，那几天不会算成你来过。"
+        },
+        {
+          "id": "catchup_done.3",
+          "text": "这几页补上了，今天照常往前走。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "rest_day_visit",
+      "event": "VISIT",
+      "pose": "resting",
+      "tone": "playful",
+      "eligibility": "当天没有计划工作区间；没有迟到或工资自动激活。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "rest_day_visit.1",
+          "text": "今天不营业，连窝囊费也歇一天。"
+        },
+        {
+          "id": "rest_day_visit.2",
+          "text": "休息日还来看我？看看就行，别开工。"
+        },
+        {
+          "id": "rest_day_visit.3",
+          "text": "今天的任务是没任务。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "visit_after_end",
+      "event": "VISIT",
+      "pose": "offduty",
+      "tone": "playful",
+      "eligibility": "当天已确认收工后再次主动打开；低频一次。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "visit_after_end.1",
+          "text": "今天不是收工了吗？我看看是谁又回来了。"
+        },
+        {
+          "id": "visit_after_end.2",
+          "text": "回来拿东西可以，续班就算了。"
+        },
+        {
+          "id": "visit_after_end.3",
+          "text": "今天已经合上电脑了，这里不主动加戏。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "mascot_tap",
+      "event": "MASCOT_TAP",
+      "pose": "neutral",
+      "tone": "playful",
+      "eligibility": "用户主动点角色，至少30秒冷却；不会改变状态或金额。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "mascot_tap.1",
+          "text": "看我干吗，我也在等下班。"
+        },
+        {
+          "id": "mascot_tap.2",
+          "text": "工资不会因为多戳我两下涨得更快。"
+        },
+        {
+          "id": "mascot_tap.3",
+          "text": "我负责陪着，升职加薪得找别的窗口。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 mod config;
+mod engagement;
 use config::{Config, Store};
 use serde::Serialize;
 use std::{
@@ -120,7 +121,29 @@ fn save_config(
     expected_revision: u64,
 ) -> Result<Config, String> {
     let mut s = state.store.lock().map_err(|_| "配置服务不可用")?;
+    let mut config = config;
+    config.engagement = s.config.engagement.clone();
     commit(&app, &mut s, config, expected_revision)
+}
+#[tauri::command]
+fn save_engagement(
+    app: AppHandle,
+    state: State<Desktop>,
+    engagement: serde_json::Value,
+    expected_revision: u64,
+) -> Result<Config, String> {
+    let mut s = state.store.lock().map_err(|_| "配置服务不可用")?;
+    if engagement.get("version").and_then(|v| v.as_u64()) != Some(1)
+        || !engagement
+            .get("days")
+            .map(|v| v.is_object())
+            .unwrap_or(false)
+    {
+        return Err("互动记录无法读取".into());
+    }
+    let mut c = s.config.clone();
+    c.engagement = Some(engagement);
+    commit(&app, &mut s, c, expected_revision)
 }
 #[tauri::command]
 fn set_preference(
@@ -133,6 +156,7 @@ fn set_preference(
     let mut c = s.config.clone();
     let rev = c.revision;
     match key.as_str() {
+        "rollingAmount" => c.preferences.rolling_amount = value,
         "privacyMode" => c.preferences.privacy_mode = value,
         "alwaysOnTop" => c.preferences.always_on_top = value,
         "showFunText" => c.preferences.show_fun_text = value,
@@ -316,6 +340,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_config,
             save_config,
+            save_engagement,
             set_preference,
             open_settings,
             show_widget,

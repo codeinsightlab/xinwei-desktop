@@ -1,0 +1,58 @@
+.widget.engagement-shell {
+  width:min(304px,100vw); height:250px; display:flex; flex-direction:column;
+  padding:12px 15px; isolation:isolate;
+}
+.is-native .widget.engagement-shell {width:100vw;height:100dvh}
+.engagement-shell .widget-header {flex:none;margin:0 0 12px}
+.engagement-shell .brand::before {content:"";width:9px;height:9px;background:var(--accent);border:1px solid var(--text);border-radius:3px;transform:rotate(-10deg)}
+.engagement-widget {min-height:0;flex:1;display:flex;flex-direction:column}
+.engagement-hero {display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:46px}
+.engagement-hero .salary {min-width:0}
+.idle-headline {font-size:25px;letter-spacing:-1px;line-height:1.25}
+.mascot-tap,.mascot-still {flex:none;width:60px}
+.mascot-tap {height:46px;padding:0;border-radius:8px}
+.mascot-tap img,.mascot-still {height:46px;width:60px}
+.engagement-widget .widget-status-row {gap:6px;margin:6px 0}
+.engagement-widget .work-status[data-state=work] {background:var(--state-work-bg);color:var(--state-work-text)}
+.engagement-widget .work-status[data-state=break],.engagement-widget .work-status[data-state=after] {background:var(--state-break-bg);color:var(--state-break-text)}
+.engagement-widget .work-status[data-state=rest] {background:var(--state-rest-bg);color:var(--state-rest-text)}
+.engagement-widget[data-state=break] .progress-track>div {background:var(--purple)}
+.engagement-progress {height:17px;display:flex;flex-direction:column;justify-content:center;font-size:10px;color:var(--secondary)}
+.engagement-controls {display:flex;gap:10px;align-items:center;margin:6px 0;min-height:36px}
+.engagement-controls .primary,.engagement-controls .outline-btn {min-height:34px;padding:5px 13px}
+.engagement-controls .text-btn {font-size:11px}
+.engagement-notes {border-top:1px solid var(--border);padding-top:5px;margin-top:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.engagement-notes small,.link-chip {font-size:10px;color:var(--secondary);line-height:15px}
+.link-chip {padding:3px 5px;background:var(--surface-alt);border-radius:5px}
+.engagement-dialog {
+  width:min(290px,calc(100vw - 12px));max-height:min(238px,calc(100dvh - 12px));margin:auto;
+  padding:0;overflow:hidden;border:1px solid var(--strong-border);border-radius:12px;
+  color:var(--text);background:var(--surface);box-shadow:var(--shadow);
+}
+.engagement-dialog[open] {display:flex;flex-direction:column}
+.engagement-dialog::backdrop {background:var(--overlay)}
+.engagement-dialog header,.engagement-dialog footer {display:flex;align-items:center;gap:6px;padding:4px 12px;flex:none}
+.engagement-dialog header {justify-content:space-between;border-bottom:1px solid var(--border)}
+.engagement-dialog header h2 {margin:0;font-size:14px}
+.engagement-dialog-body {padding:8px 12px;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.engagement-dialog p {font-size:12px;line-height:1.5;margin:0 0 7px}
+.engagement-dialog p:last-child {margin-bottom:0}
+.engagement-dialog p.compact-note {font-size:11px}
+.engagement-dialog footer {border-top:1px solid var(--border);flex-wrap:wrap}
+.engagement-dialog .primary,.engagement-dialog .outline-btn {font-size:11px;min-height:28px;padding:5px 8px;white-space:normal}
+.engagement-dialog .text-btn {font-size:11px;min-height:26px}
+.companion-line {display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.companion-line p {color:var(--text)}
+.companion-line img {width:40px;height:30px;flex:none}
+.day-facts {margin:0;color:var(--secondary);font-size:11px;font-variant-numeric:tabular-nums}
+.day-facts>div {display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:2px 0}
+.day-facts dd {margin:0;color:var(--text);text-align:right}
+.day-facts-total {font-weight:650;color:var(--text)}
+.reply-choices {display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.catchup-list label {display:flex;align-items:center;gap:6px;min-height:32px;font-size:12px}
+.catchup-list strong {margin-left:auto}
+.end-field {display:grid;gap:3px;margin-bottom:7px;font-size:11px;color:var(--secondary)}
+.end-field input,.end-field select {height:32px;padding:4px 8px}
+.record-day {font-size:11px;border-top:1px solid var(--border);padding:5px 0}
+.record-day summary {cursor:pointer;color:var(--text);padding:3px 0}
+.engagement-error {background:var(--danger-bg);color:var(--danger);padding:5px 8px;border-radius:5px}

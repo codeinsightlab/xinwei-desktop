@@ -1,0 +1,1 @@
+正式动作尚未交付。neutral、working、lucky、annoyed、resting、tired、offduty、welcome 支持同名 PNG/WebP/SVG，统一由 Mascot.vue 加载，缺失时复用 mascot-work.svg 占位。不可把概念板裁图当成正式素材。

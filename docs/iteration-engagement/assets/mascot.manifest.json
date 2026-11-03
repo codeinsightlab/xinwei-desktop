@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "status": "planning_manifest_not_runtime_assets",
+  "master": {
+    "status": "not_approved_as_separate_asset",
+    "sourceFile": null,
+    "note": "现有参考图里的角色仅为方向，不是已验收母版。先选定一个轮廓，再出动作变体。"
+  },
+  "poses": [
+    {
+      "id": "neutral",
+      "label": "日常待机",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/neutral.png",
+      "fallbackPose": "neutral",
+      "description": "圆润白色小团子坐着，双手自然放在身前，平静眼神。",
+      "uses": [
+        "未开工",
+        "普通设置",
+        "轻量提示"
+      ]
+    },
+    {
+      "id": "working",
+      "label": "打开电脑",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/working.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色坐在小笔记本电脑后，微微前倾；表情平静，不表现亢奋。",
+      "uses": [
+        "开工",
+        "计数中"
+      ]
+    },
+    {
+      "id": "lucky",
+      "label": "偷偷窃喜",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/lucky.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色轻微侧头、抿嘴偷笑，一只短手做小幅庆幸动作，不使用夸张财富符号。",
+      "uses": [
+        "晚来不扣款",
+        "宽限内",
+        "免扣规则"
+      ]
+    },
+    {
+      "id": "annoyed",
+      "label": "替你不服",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/annoyed.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色抱臂或托腮，眉眼轻微不服；用可爱无奈而非攻击或哭泣表达。",
+      "uses": [
+        "按分钟扣款",
+        "损失调侃"
+      ]
+    },
+    {
+      "id": "resting",
+      "label": "趴下休息",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/resting.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色趴在合起的电脑旁，闭眼，小体量杯子可选；不画文字或Z字符。",
+      "uses": [
+        "午休",
+        "休息日"
+      ]
+    },
+    {
+      "id": "tired",
+      "label": "有点困了",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/tired.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色托腮，眼睛半闭、肩部放松；不画病容、伤口或极端疲惫。",
+      "uses": [
+        "晚收工中",
+        "昨日晚收工",
+        "连续晚收工"
+      ]
+    },
+    {
+      "id": "offduty",
+      "label": "合上电脑",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/offduty.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色轻松伸展或合起电脑，表情舒展；动作不出安全区。",
+      "uses": [
+        "收工",
+        "提前结束"
+      ]
+    },
+    {
+      "id": "welcome",
+      "label": "欢迎回来",
+      "status": "planned",
+      "sourceFile": null,
+      "targetFile": "src/assets/mascot/welcome.png",
+      "fallbackPose": "neutral",
+      "description": "同一角色轻轻挥手或推来一只无标识杯子，温和表情，适合普通欢迎及关怀。",
+      "uses": [
+        "缺席回归",
+        "状态不好",
+        "温和回应"
+      ]
+    }
+  ],
+  "format": {
+    "preferred": "transparent PNG",
+    "size": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "safePaddingPercent": 12,
+    "textEmbedded": false
+  },
+  "requirements": [
+    "同一母版",
+    "统一比例和线宽",
+    "独立透明文件",
+    "小尺寸可读",
+    "无UI文字、工资或按钮",
+    "不得以占位宣称正式交付"
+  ]
+}

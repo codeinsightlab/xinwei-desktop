@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { clone, defaultConfig, validateConfig } from '../domain/model';
+import type { Ledger } from '../domain/engagement';
 import type { Config, Preferences } from '../domain/model';
 import { previewState } from '../application/preview-state';
 export const native = '__TAURI_INTERNALS__' in window;
@@ -12,6 +13,7 @@ function loadBrowser(): LoadResult {
   try {
     const stored = localStorage.getItem(key);
     const config = stored ? JSON.parse(stored) as Config : defaultConfig();
+    if (config.preferences && config.preferences.rollingAmount === undefined) config.preferences.rollingAmount = true;
     if (validateConfig(config)) throw new Error();
     return {config,notice:null,recoveryRequired:false,trayAvailable:false};
   } catch { return {config:defaultConfig(),notice:'配置无法读取，请重新设置。',recoveryRequired:true,trayAvailable:false}; }
@@ -23,13 +25,18 @@ function browserSave(config: Config, expected: number): Config {
   const saved=clone(config); saved.revision=expected+1;
   if(import.meta.env.DEV && previewState.enabled)previewState.config=clone(saved);else localStorage.setItem(key,JSON.stringify(saved)); window.dispatchEvent(new Event('preview-config-changed'));return saved;
 }
+// The browser preview mirrors the native revision transaction across same-origin windows.
+function browserTransaction<T>(write:()=>T):Promise<T> {
+  return navigator.locks ? navigator.locks.request('xinwei-config', write) : Promise.resolve().then(write);
+}
 export const desktop = {
   load: (): Promise<LoadResult> => native ? invoke('get_config') : Promise.resolve(loadBrowser()),
-  save: (config: Config, expectedRevision: number): Promise<Config> => native ? invoke('save_config',{config,expectedRevision}) : Promise.resolve().then(()=>browserSave(config,expectedRevision)),
+  saveEngagement: (engagement:Ledger,expectedRevision:number):Promise<Config> => native ? invoke('save_engagement',{engagement,expectedRevision}) : browserTransaction(()=>{const c=loadBrowser().config;c.engagement=engagement;return browserSave(c,expectedRevision);}),
+  save: (config: Config, expectedRevision: number): Promise<Config> => native ? invoke('save_config',{config,expectedRevision}) : browserTransaction(()=>browserSave({...config,engagement:loadBrowser().config.engagement},expectedRevision)),
   preference: (name: keyof Preferences, value: boolean): Promise<Config> => {
     if (native) return invoke('set_preference',{key:name,value});
     if (name==='launchAtLogin') return Promise.reject(new Error('开机启动请在桌面应用中设置'));
-    const c=loadBrowser().config;c.preferences[name]=value;return Promise.resolve().then(()=>browserSave(c,c.revision));
+    return browserTransaction(()=>{const c=loadBrowser().config;c.preferences[name]=value;return browserSave(c,c.revision);});
   },
   openSettings: () => native ? invoke<void>('open_settings') : Promise.resolve(window.location.assign('?view=settings')),
   finish: () => native ? invoke<void>('finish_setup') : Promise.resolve(window.location.assign('./')),

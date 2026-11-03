@@ -1,0 +1,15 @@
+{
+  "checked": "handoff package only; no app or Windows tests executed",
+  "sceneCount": 31,
+  "messageCount": 93,
+  "choiceCount": 13,
+  "poseCount": 8,
+  "referenceImages": 3,
+  "jsonParsed": true,
+  "uniqueSceneAndMessageIds": true,
+  "validPoseMappings": true,
+  "declaredMessageVariables": true,
+  "sensitiveMessageFallbacks": true,
+  "exampleArithmeticChecked": true,
+  "productionMascotImagesIncluded": false
+}

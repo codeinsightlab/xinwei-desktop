@@ -22,6 +22,8 @@ pub struct Profile {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
+    #[serde(default = "default_rolling_amount")]
+    pub rolling_amount: bool,
     pub privacy_mode: bool,
     pub always_on_top: bool,
     pub show_fun_text: bool,
@@ -33,20 +35,28 @@ pub struct Preferences {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engagement: Option<serde_json::Value>,
     pub schema_version: u32,
     pub revision: u64,
     pub profile: Option<Profile>,
     pub overrides: BTreeMap<String, String>,
     pub preferences: Preferences,
 }
+fn default_rolling_amount() -> bool {
+    true
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
+            engagement: None,
             schema_version: 1,
             revision: 0,
             profile: None,
             overrides: BTreeMap::new(),
             preferences: Preferences {
+                rolling_amount: true,
                 privacy_mode: false,
                 always_on_top: true,
                 show_fun_text: true,
@@ -60,6 +70,9 @@ impl Default for Config {
 }
 impl Config {
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(ledger) = &self.engagement {
+            crate::engagement::validate(ledger)?;
+        }
         if self.schema_version != 1 || self.revision > 9_007_199_254_740_990 {
             return Err("配置版本无法读取".into());
         }
@@ -264,6 +277,23 @@ fn replace(from: &Path, to: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn rolling_preference_defaults_and_roundtrips() {
+        let mut old = serde_json::to_value(Config::default()).unwrap();
+        old["preferences"]
+            .as_object_mut()
+            .unwrap()
+            .remove("rollingAmount");
+        let mut config = parse(&serde_json::to_vec(&old).unwrap()).unwrap();
+        assert!(config.preferences.rolling_amount);
+        config.preferences.rolling_amount = false;
+        assert!(
+            !parse(&serde_json::to_vec(&config).unwrap())
+                .unwrap()
+                .preferences
+                .rolling_amount
+        );
+    }
     fn directory() -> PathBuf {
         std::env::temp_dir().join(format!(
             "xinwei-test-{}",
@@ -287,6 +317,29 @@ mod tests {
         let recovered = Store::open(dir.clone()).unwrap();
         assert_eq!(recovered.config.revision, 1);
         assert!(recovered.notice.is_some());
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn engagement_survives_restart_and_rejects_stale_writers() {
+        let dir = directory();
+        let mut store = Store::open(dir.clone()).unwrap();
+        let winner = serde_json::json!({
+            "version":1,"firstUsedDate":"2026-11-03",
+            "policy":{"mode":"NONE","graceMinutes":0,"perMinuteMinor":0},
+            "days":{},"receipts":{},"batches":{}
+        });
+        let mut config = store.config.clone();
+        assert!(config.engagement.is_none());
+        config.engagement = Some(winner.clone());
+        store.commit(config.clone(),0).unwrap();
+        let mut damaged = winner.clone();
+        damaged["days"]["2026-11-03"] = serde_json::json!({"state":"ACTIVE"});
+        config.engagement = Some(damaged);
+        assert!(store.commit(config,1).is_err());
+        assert!(store.commit(Config::default(),0).is_err());
+        let loaded = Store::open(dir.clone()).unwrap();
+        assert_eq!(loaded.config.engagement,Some(winner));
+        assert_eq!(loaded.config.revision,1);
         fs::remove_dir_all(dir).unwrap();
     }
     #[test]
