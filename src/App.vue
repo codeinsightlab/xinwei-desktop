@@ -55,7 +55,7 @@ onMounted(async()=>{
 onUnmounted(()=>{disposed=true;clearInterval(timer);cleanups.forEach(f=>f());window.removeEventListener('focus',onVisible);document.removeEventListener('visibilitychange',onVisible);});
 </script>
 <template>
-  <Settings v-if="settings && loaded"/>
+  <Settings v-if="settings && loaded" :now="now"/>
   <div v-else class="widget-stage">
     <article class="widget" :class="{'is-private':hidden,'has-long-amount':longAmount}" :data-status="earnings.status">
       <header class="widget-header" @mousedown.left="!($event.target as HTMLElement).closest('button') && desktop.drag()">

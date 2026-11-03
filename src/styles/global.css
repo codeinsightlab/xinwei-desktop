@@ -34,7 +34,7 @@ h2{font-size:15px;font-weight:650;margin:0 0 20px}p{line-height:1.8;color:var(--
 .widget-status-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:7px 0 8px}.widget-status-row>span:last-child{font-size:11px;color:var(--secondary);font-variant-numeric:tabular-nums}
 .widget-footnote{font-size:10px;color:var(--secondary);margin-top:7px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .widget[data-status=DAY_OFF] .widget-footnote{margin-top:10px}.widget[data-status=BREAK] .progress-track>div{background:var(--purple)}
-.widget-menu{position:absolute;right:8px;top:33px;z-index:6;width:152px;max-height:calc(100% - 40px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:var(--shadow)}
+.widget-menu{position:absolute;right:8px;top:33px;z-index:6;width:152px;max-height:calc(100% - 40px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:2px;box-shadow:var(--shadow)}
 .widget-menu button{display:flex;align-items:center;gap:8px;width:100%;height:26px;padding:4px 8px;text-align:left;font-size:12px;line-height:18px;border-radius:4px}
 .widget-empty{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:12px 0;font-size:12px}.widget-empty strong{font-weight:600}.widget-empty .primary{padding:7px 12px;min-height:32px}
 .widget-overlay{position:absolute;inset:0;z-index:8;background:var(--surface);padding:16px;font-size:12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}

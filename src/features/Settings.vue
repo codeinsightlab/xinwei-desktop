@@ -11,6 +11,7 @@ import SalaryAmount from '../shared/SalaryAmount.vue';
 import { clock } from '../application/clock';
 import { previewState } from '../application/preview-state';
 import { privateMoney } from '../shared/money';
+const props=defineProps<{now:number}>();
 const tab=ref('salary'); const tabs=[['salary','工资与作息','sun'],['calendar','本月日历','calendar'],['appearance','桌面偏好','settings'],['about','关于薪慰','leaf']];
 const draft=reactive({salary:'',basis:'税前',customBasis:'',weekdays:[1,2,3,4,5],start:'09:00',end:'18:00',breakEnabled:true,breakStart:'12:00',breakEnd:'13:00'});
 const overrides=ref<Config['overrides']>({});const baseRevision=ref(config.value.revision);const editMonth=ref(monthKey(clock.now()));
@@ -56,7 +57,7 @@ function openReview(){
 }
 const before=computed(()=>previewOld.value?calculateEarnings(previewOld.value,previewTime.value):null);
 const after=computed(()=>previewConfig.value?calculateEarnings(previewConfig.value,previewTime.value):null);
-const liveSummary=computed(()=>calculateEarnings(config.value,clock.now()));
+const liveSummary=computed(()=>calculateEarnings(config.value,props.now));
 function display(n?:bigint){return privateMoney(n,privateDisplay.value);}
 async function save(){
   if(checkMonth() || !previewConfig.value)return;
