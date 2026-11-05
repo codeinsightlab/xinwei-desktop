@@ -2,14 +2,15 @@
 import { computed, ref, watch } from 'vue';
 import { config, notice } from '../application/state';
 import { engage, engagementBusy, interaction } from '../application/engagement';
+import { useCheckpointInteractions } from '../application/checkpoint-interactions';
 import { defaultConfig, defaultProfile, type Config } from '../domain/model';
 import {
-  catchupCandidates, catchupPreview, catchupPreviewTotal, dayValue, interactionText, newLedger, pendingDays, recordedMonth,
+  catchupCandidates, catchupPreview, catchupPreviewTotal, dayValue, interactionText, newLedger, pendingDays,
   reduceEngagement, ruleSnapshot, scheduleEnd,
   type Command, type ContextKey, type Pose, type Receipt
 } from '../domain/engagement';
-import { dateKey, countdown } from '../domain/salary';
-import { desktop } from '../platform/desktop';
+import { dateKey, countdown, clockTime } from '../domain/salary';
+import { desktop,platformInfo } from '../platform/desktop';
 import { privateMoney } from '../shared/money';
 import Mascot from '../shared/Mascot.vue';
 import Icon from '../shared/Icon.vue';
@@ -18,7 +19,7 @@ import SalaryAmount from '../shared/SalaryAmount.vue';
 import DayFacts from './DayFacts.vue';
 import WidgetDialog from './WidgetDialog.vue';
 
-const props = defineProps<{now:number;demo:boolean}>();
+const props = defineProps<{now:number;demo:boolean;obstructed?:boolean}>();
 // Onboarding demo is its own clock and in-memory ledger.
 const demoOrigin = props.now;
 const demoModel = ref<Config>({...defaultConfig(),profile:defaultProfile()});
@@ -65,21 +66,15 @@ const progress = computed(() => {
   const total = source.value?.intervals.reduce((t,i)=>t+i.end-i.start,0) || 0;
   return total && facts.value ? Math.min(1,facts.value.seconds/total) : 0;
 });
-const summary = computed(() => recordedMonth(ledger.value,now.value));
 const pending = computed(() => pendingDays(ledger.value,now.value).sort((a,b)=>b.workDate.localeCompare(a.workDate)));
 const eligible = computed(() => {
   return source.value ? catchupCandidates(current.value,ledger.value,now.value) : [];
 });
-const monthDays = computed(() => Object.values(ledger.value.days)
-  .filter(d=>d.workDate.startsWith(today.value.slice(0,7))).sort((a,b)=>b.workDate.localeCompare(a.workDate)));
-const latestBatch = computed(() => Object.entries(ledger.value.batches)
-  .filter(([, dates]) => dates.some(date => date.startsWith(today.value.slice(0,7))))
-  .at(-1)?.[0]);
 const large = computed(() => facts.value && !hidden.value && String(facts.value.net).length>7);
 const money = (value:bigint) => '¥ '+privateMoney(value,hidden.value);
 const dayHint = computed(() => {
   switch(state.value) {
-    case 'work': return '距约定下班 '+countdown((scheduleEnd(day.value!)-now.value)/1000);
+    case 'work': return '距今日 '+clockTime(scheduleEnd(day.value!)/1000)+' 下班 '+countdown((scheduleEnd(day.value!)-now.value)/1000);
     case 'after': return '已到约定下班时间，工资封顶';
     case 'break': return '午休暂停增长';
     case 'before': return '到约定时间开始累积';
@@ -92,7 +87,7 @@ const dayHint = computed(() => {
   }
 });
 
-type Panel = 'receipt'|'details'|'records'|'settle'|'catchup';
+type Panel = 'receipt'|'settle'|'catchup';
 const panel = ref<Panel>();
 const shown = ref<Receipt>();
 const teaser = ref<Receipt>();
@@ -103,6 +98,17 @@ const returnChoices = [
   ['状态不太好','unwell'],['忘了打开','forgot']
 ] as const;
 const canAnswerReturn = computed(() => fun.value && !shown.value?.responded && !shown.value?.skipped && ['return_gap','return_long'].includes(shown.value?.sceneId||''));
+const dismissOnClick = computed(() => (panel.value==='receipt' && !copy.value?.choices.length && !canAnswerReturn.value
+    && !(shown.value?.sceneId==='catchup_done' && ledger.value.batches[batchId.value])
+    && !(!day.value && state.value==='idle')));
+const {message: checkpointMessage, dismiss: dismissCheckpoint} = useCheckpointInteractions({
+  day: () => day.value,
+  enabled: () => !props.demo && fun.value && day.value?.state === 'ACTIVE',
+  blocked: () => !!panel.value || !!props.obstructed || disabled.value || !!notice.value,
+  claim: async kind => (await run({type:'checkpoint',kind})).event,
+});
+const checkpointCopy = computed(() => checkpointMessage.value
+  && interactionText(checkpointMessage.value,ledger.value,now.value,hidden.value,fun.value));
 
 async function run(command:Command, revision?:number) {
   if (busy.value) return {ok:false, event:undefined};
@@ -131,14 +137,18 @@ async function action(command:Command) {
   const result=await run(command);
   if (!result.ok) return;
   if (result.event) showReceipt(result.event);
-  else if (command.type==='end' && day.value?.state==='CLOSED') panel.value='details';
+  else if (command.type==='end' && day.value?.state==='CLOSED') await openRecords('today');
   else if (command.type==='reopen' || command.type==='start') panel.value=undefined;
+}
+async function openRecords(section:'today'|'records') {
+  try { await desktop.openSettings(section); }
+  catch(error) { notice.value=String(error); }
 }
 async function enterDay(_date:string,previousDate?:string) {
   panel.value=undefined;
   shown.value=undefined;
   teaser.value=undefined;
-  const result=await run({type:previousDate ? 'rollover' : 'visit'});
+  const result=await run({type:previousDate || (!props.demo && platformInfo.value.backgroundLaunch) ? 'rollover' : 'visit'});
   if (result.event && fun.value) teaser.value=result.event;
 }
 watch(today,enterDay,{immediate:true});
@@ -162,8 +172,6 @@ async function answerReturn(answer:ContextKey) {
   if (r.event) shown.value=r.event;
 }
 const panelTitle = computed(() => {
-  if(panel.value==='details') return '今日记录';
-  if(panel.value==='records') return '本月记录';
   if(panel.value==='settle') return '为那天收个尾';
   if(panel.value==='catchup') return '补看工资进度';
   if (shown.value?.eventId.includes(':end')) return '收工回顾';
@@ -197,10 +205,10 @@ async function confirmCatchup() {
   const result=await run({type:'catchup',dates:[...draftDates.value],batchId:batchId.value},capturedRevision.value);
   if (!result.ok) return;
   if (result.event) showReceipt(result.event);
-  else panel.value='records';
+  else {panel.value=undefined;await openRecords('records');}
 }
 async function undoBatch(id:string) {
-  if ((await run({type:'undoCatchup',batchId:id})).ok) panel.value='records';
+  if ((await run({type:'undoCatchup',batchId:id})).ok) {panel.value=undefined;await openRecords('records');}
 }
 const selectedPendingDate = ref('');
 const selectedPending = computed(()=>pending.value.find(d=>d.workDate===selectedPendingDate.value));
@@ -225,14 +233,18 @@ async function settle(scheduled:boolean) {
 
 <template>
   <div class="engagement-widget" :data-state="state">
+    <aside v-if="checkpointCopy" class="checkpoint-card" role="status" aria-live="polite" @click="dismissCheckpoint">
+      <Mascot :pose="checkpointCopy.pose"/>
+      <p>{{checkpointCopy.text}}<small>点击收起</small></p>
+      <button class="icon-btn" aria-label="收起时间提醒" @click.stop="dismissCheckpoint"><Icon name="close" :size="14"/></button>
+    </aside>
     <div class="earning-label">{{config.preferences.funMode?'今日窝囊费':'今日估算'}}</div>
     <div class="engagement-hero" :class="{large}">
       <div class="salary">
         <SalaryAmount v-if="facts" hero :value="facts.net" :rolling="config.preferences.rollingAmount" :hidden="hidden"/>
         <strong v-else class="idle-headline">{{state==='idle'?'今天还没开张':state==='rest'?'今日休息':state==='missed'?'今天还没记录':'等待开启'}}</strong>
       </div>
-      <button v-if="!large && fun" class="mascot-tap" aria-label="和薪慰说句话" :disabled="disabled" @click="action({type:'tap'})"><Mascot :pose="pose"/></button>
-      <Mascot v-else-if="!large" class="mascot-still" :pose="pose"/>
+      <button v-if="!large" class="mascot-tap" aria-label="和薪慰说句话" :disabled="disabled || !fun" @click="action({type:'tap'})"><Mascot :pose="pose"/></button>
     </div>
     <div class="widget-status-row"><span class="work-status" :data-state="state"><i class="status-dot"/>{{labels[state]}}</span>
       <span>{{state==='after'?'晚收工 '+Math.floor((facts?.overtimeSeconds||0)/60)+' 分钟':dayHint}}</span>
@@ -244,8 +256,8 @@ async function settle(scheduled:boolean) {
       <button v-else-if="state==='closed'" class="outline-btn" :disabled="disabled" @click="action({type:'reopen'})">刚才点错了，继续</button>
       <button v-else-if="state==='missed'" class="primary" :disabled="disabled" @click="openCatchup(true)">补看今天</button>
       <button v-else-if="state==='invalid'" class="primary" @click="desktop.openSettings()">调整作息</button>
-      <button v-if="day" class="text-btn" @click="panel='details'">今日明细</button>
-      <button class="text-btn" @click="panel='records'">本月记录</button>
+      <button v-if="day" class="text-btn" @click="openRecords('today')">今日明细</button>
+      <button class="text-btn" @click="openRecords('records')">本月记录</button>
     </div>
     <div class="engagement-notes">
       <button v-if="teaser" class="link-chip" @click="openTeaser">{{teaser.sceneId.startsWith('return_')?'欢迎回来，聊两句':'薪慰有句话'}} ↗</button>
@@ -254,19 +266,12 @@ async function settle(scheduled:boolean) {
       <small v-if="!teaser && !pending.length && !eligible.length">按设置估算 · {{props.demo?'示例体验':'仅在本机记录'}}</small>
     </div>
 
-    <WidgetDialog v-if="panel" :title="panelTitle" @close="closePanel">
+    <WidgetDialog v-if="panel" :title="panelTitle" :dismiss-on-click="dismissOnClick" @close="closePanel">
       <template v-if="panel==='receipt' && shown && copy">
         <div class="companion-line"><Mascot :pose="copy.pose"/><p>{{copy.text}}</p></div>
         <DayFacts v-if="priorFact && (shown.eventId.includes(':start')||shown.eventId.includes(':end'))" :day="priorFact" :now="now" :hidden="hidden"/>
         <div v-if="copy.choices.length" class="reply-choices"><button v-for="choice in copy.choices" :key="choice.id" class="outline-btn" :disabled="disabled" @click="reply(choice.id)">{{choice.label}}</button></div>
         <div v-if="canAnswerReturn" class="reply-choices"><button v-for="[label,scene] in returnChoices" :key="scene" class="outline-btn" :disabled="disabled" @click="answerReturn(scene)">{{label}}</button></div>
-      </template>
-      <template v-if="panel==='details' && day"><DayFacts :day="day" :now="now" :hidden="hidden"/><p class="compact-note">{{day.source==='ESTIMATED_CATCHUP'?'这天按设置补算了展示进度。':'晚收工时长按本次开工和收工操作估算。'}}</p></template>
-      <template v-if="panel==='records'">
-        <p>本月已记录估算 <strong>{{money(summary)}}</strong></p>
-        <p class="compact-note">合计已开工和主动补算的日期。{{pending.length?pending.length+' 天待收尾。':''}}</p>
-        <p v-if="!monthDays.length" class="compact-note">本月还没有记录。</p>
-        <details v-for="item in monthDays" :key="item.workDate" class="record-day"><summary>{{item.workDate}} · {{item.source==='ESTIMATED_CATCHUP'?'按设置补算':item.state==='CLOSED'?'已收工':item.workDate!==today?'待收尾':'进行中'}}</summary><DayFacts :day="item" :now="now" :hidden="hidden"/></details>
       </template>
       <template v-if="panel==='catchup'">
         <p>按当前工资与作息估算。勾选要补上的日期。</p>
@@ -289,14 +294,9 @@ async function settle(scheduled:boolean) {
           <button class="primary" :disabled="disabled" @click="settle(true)">按约定时间收工</button>
           <button class="outline-btn" :disabled="disabled||!endTime" @click="settle(false)">用所选时间</button>
         </template>
-        <template v-else-if="panel==='records'">
-          <button v-if="eligible.length" class="primary" @click="openCatchup()">预览补算</button>
-          <button v-if="pending.length" class="outline-btn" @click="openSettle">去收尾</button>
-          <button v-if="latestBatch" class="text-btn" :disabled="disabled" @click="undoBatch(latestBatch)">撤销最近补算</button>
-        </template>
         <button v-else-if="panel==='receipt' && shown?.sceneId==='catchup_done' && ledger.batches[batchId]" class="outline-btn" :disabled="disabled" @click="undoBatch(batchId)">撤销本批补算</button>
         <button v-else-if="panel==='receipt' && !day && state==='idle'" class="primary" :disabled="disabled" @click="action({type:'start'})">直接开工</button>
-        <button class="text-btn" @click="closePanel">{{panel==='settle'?'先不管':'关闭'}}</button>
+        <button v-if="!dismissOnClick" class="text-btn" @click="closePanel">{{panel==='settle'?'先不管':'收起'}}</button>
       </template>
     </WidgetDialog>
   </div>

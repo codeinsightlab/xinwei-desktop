@@ -3,6 +3,13 @@ const OFFSET = 8 * 3600;
 export type WorkStatus = 'BEFORE_WORK' | 'WORKING' | 'BREAK' | 'AFTER_WORK' | 'DAY_OFF' | 'INVALID_CONFIG' | 'UNCONFIGURED';
 export interface Interval { start: number; end: number; date: string }
 export interface MonthPlan { month: string; intervals: Interval[]; seconds: number; days: number }
+/** Schedule labels always use the same Beijing clock as accounting. */
+export function clockTime(second: number): string {
+  return new Date((second + OFFSET) * 1000).toISOString().slice(11,16);
+}
+export function scheduleLabel(intervals: readonly Interval[]): string {
+  return intervals.map(i => `${clockTime(i.start)}–${clockTime(i.end)}`).join('、');
+}
 export function dateKey(now: number): string { return new Date(now + OFFSET*1000).toISOString().slice(0,10); }
 export function monthKey(now: number) { return dateKey(now).slice(0,7); }
 export function monthDates(month: string): string[] {

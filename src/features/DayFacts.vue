@@ -2,8 +2,9 @@
 import { computed } from 'vue';
 import { dayValue, type EngagementDay } from '../domain/engagement';
 import { privateMoney } from '../shared/money';
+import { scheduleLabel } from '../domain/salary';
 
-const props = defineProps<{day:EngagementDay;now:number;hidden:boolean}>();
+const props = defineProps<{day:EngagementDay;now:number;hidden:boolean;totalLabel?:string}>();
 const facts = computed(() => dayValue(props.day, props.now));
 const money = (v:bigint) => '¥ ' + privateMoney(v,props.hidden);
 function duration(seconds:number) {
@@ -14,10 +15,11 @@ function duration(seconds:number) {
 </script>
 <template>
   <dl class="day-facts">
+    <div class="day-schedule"><dt>当日计薪时段 · 北京时间</dt><dd>{{scheduleLabel(day.snapshot.intervals)}}</dd><dd>按当日已确认的约定，时段外不增长</dd></div>
     <div><dt>计划内累积</dt><dd>{{money(facts.gross)}}</dd></div>
     <div v-if="day.source==='USER' && day.lateSeconds"><dt>比约定晚开工</dt><dd>{{duration(day.lateSeconds)}}</dd></div>
     <div v-if="day.deductionMinor"><dt>按设置扣减 · {{day.chargedMinutes}} 分钟</dt><dd>{{money(facts.deduction)}}</dd></div>
-    <div class="day-facts-total"><dt>今日估算</dt><dd>{{money(facts.net)}}</dd></div>
+    <div class="day-facts-total"><dt>{{totalLabel || '今日估算'}}</dt><dd>{{money(facts.net)}}</dd></div>
     <div v-if="facts.overtimeSeconds"><dt>估算晚收工</dt><dd>{{duration(facts.overtimeSeconds)}}</dd></div>
   </dl>
 </template>

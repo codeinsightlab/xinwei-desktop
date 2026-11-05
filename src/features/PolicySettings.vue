@@ -53,7 +53,7 @@ watch(draftKey, () => { warning.value = ''; lastEvent.value = undefined; savedLo
 function concealRate() { if (hidden.value) editingRate.value = false; }
 onMounted(() => window.addEventListener('blur', concealRate));
 onUnmounted(() => window.removeEventListener('blur', concealRate));
-defineExpose({ resetDraft });
+defineExpose({ resetDraft,save });
 
 const parsed = computed((): { policy?: Policy; graceError?: string; rateError?: string } => {
   const graceMinutes = Number(grace.value);
@@ -77,16 +77,17 @@ async function editRate() {
 }
 async function save() {
   submitted.value = true;
-  if (!parsed.value.policy || changedOutside.value || engagementBusy.value || savedLocally.value) return;
+  if (!parsed.value.policy || changedOutside.value || engagementBusy.value || savedLocally.value) return false;
   const previousEvent = interaction.value?.eventId;
   const ok = await engage({ type: 'policy', policy: parsed.value.policy }, config.value.revision);
-  if (!ok) { warning.value = notice.value || '未能保存。草稿还在，可以重试。'; return; }
+  if (!ok) { warning.value = notice.value || '未能保存。草稿还在，可以重试。'; return false; }
   const receipt = interaction.value?.eventId !== previousEvent ? interaction.value : undefined;
   resetDraft();
   notice.value = '';
   savedLocally.value = true;
   lastEvent.value = receipt;
   if (!receipt) warning.value = '开工约定已保存。';
+  return true;
 }
 async function reply(replyId: string) {
   if (!lastEvent.value) return;

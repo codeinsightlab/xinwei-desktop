@@ -1,6 +1,6 @@
 [package]
 name = "xinwei-desktop"
-version = "1.0.0"
+version = "1.2.0"
 description = "Xinwei desktop salary companion"
 edition = "2021"
 
@@ -12,7 +12,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
@@ -21,6 +21,11 @@ chrono = { version = "0.4", default-features = false, features = ["std", "serde"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWindow", "NSEvent", "NSGraphicsContext", "NSApplication", "NSRunningApplication"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSProcessInfo"] }
 
 [profile.release]
 codegen-units = 1

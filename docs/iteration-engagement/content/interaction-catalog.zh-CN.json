@@ -9,7 +9,7 @@
     "priority": "错误用明确中性提示；用户表达状态不好优先温和；回归、昨日明显晚收工优先于一般开工；金额事实独立显示。",
     "businessActions": "RETURN近况、PENDING_END收尾、CATCHUP补算按钮由类型化业务代码实现，不执行任意JSON脚本。",
     "privacy": "含金额变量时必须用privacyFallback或安全替代；事实区和辅助功能同时遮挡；不通过金额换算反推出金额。",
-    "timing": "只在合适事件触发；STATE_ENTER默认安静更新，不等于自动弹窗。",
+    "timing": "只在合适事件触发；三个计划节点可在持续可见且趣味反馈开启时低频提示，其他STATE_ENTER安静更新；不唤醒隐藏窗口，不补弹错过节点。",
     "noRepeats": "同一事件幂等，常见事件避免最近3次相同变体；随机可注入测试种子。"
   },
   "variables": {
@@ -866,6 +866,78 @@
         {
           "id": "mascot_tap.3",
           "text": "我负责陪着，升职加薪得找别的窗口。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "checkpoint_lunch_start",
+      "event": "SCHEDULE_CHECKPOINT",
+      "pose": "resting",
+      "tone": "gentle",
+      "eligibility": "已主动开工且窗口持续可见、趣味反馈开启；按当日快照触发，每节点每日最多一次，自动互动间隔至少30分钟，错过不补弹。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "checkpoint_lunch_start.1",
+          "text": "午休到了，先把自己照顾好。"
+        },
+        {
+          "id": "checkpoint_lunch_start.2",
+          "text": "先歇一会儿，下午再一起慢慢来。"
+        },
+        {
+          "id": "checkpoint_lunch_start.3",
+          "text": "到了午休时间，离开屏幕歇歇眼睛吧。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "checkpoint_lunch_end",
+      "event": "SCHEDULE_CHECKPOINT",
+      "pose": "working",
+      "tone": "gentle",
+      "eligibility": "已主动开工且窗口持续可见、趣味反馈开启；按当日快照触发，每节点每日最多一次，自动互动间隔至少30分钟，错过不补弹。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "checkpoint_lunch_end.1",
+          "text": "午休结束，慢慢找回节奏，我陪着你。"
+        },
+        {
+          "id": "checkpoint_lunch_end.2",
+          "text": "下午好，先从一件小事开始吧。"
+        },
+        {
+          "id": "checkpoint_lunch_end.3",
+          "text": "休息告一段落，下午也不用着急。"
+        }
+      ],
+      "privacyFallback": null,
+      "choices": []
+    },
+    {
+      "id": "checkpoint_work_end",
+      "event": "SCHEDULE_CHECKPOINT",
+      "pose": "offduty",
+      "tone": "gentle",
+      "eligibility": "已主动开工且窗口持续可见、趣味反馈开启；按当日快照触发，每节点每日最多一次，自动互动间隔至少30分钟，错过不补弹。",
+      "variables": [],
+      "messages": [
+        {
+          "id": "checkpoint_work_end.1",
+          "text": "到约定下班时间了。准备好了，再点「收工」。"
+        },
+        {
+          "id": "checkpoint_work_end.2",
+          "text": "今天的计划时段走完啦。要不要给自己一个收尾？"
+        },
+        {
+          "id": "checkpoint_work_end.3",
+          "text": "约定的工作时段结束了，收尾按你的节奏来。"
         }
       ],
       "privacyFallback": null,

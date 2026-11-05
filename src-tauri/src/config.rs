@@ -47,6 +47,46 @@ fn default_rolling_amount() -> bool {
     true
 }
 
+#[derive(Deserialize)]
+pub struct TodaySettingsUpdate {
+    pub date: String,
+    pub snapshot: serde_json::Value,
+}
+
+/// Merge only the explicitly confirmed today's snapshot into the authoritative ledger.
+pub fn apply_today_update(
+    current: &Config,
+    next: &mut Config,
+    update: TodaySettingsUpdate,
+    now_seconds: i64,
+) -> Result<(), String> {
+    let today = chrono::DateTime::from_timestamp(now_seconds + 8 * 3600, 0)
+        .ok_or("系统日期无法读取")?.format("%Y-%m-%d").to_string();
+    if update.date != today {
+        return Err("日期已变化，请重新预览后保存。".into());
+    }
+    let mut ledger = current.engagement.clone().ok_or("今天没有可更新的开工记录")?;
+    let day = ledger.get_mut("days").and_then(|days| days.get_mut(&update.date))
+        .ok_or("今天没有可更新的开工记录")?;
+    if day.get("state").and_then(|v|v.as_str()) != Some("ACTIVE")
+        || day.get("source").and_then(|v|v.as_str()) != Some("USER") {
+        return Err("今天已收工或记录已变化，请重新预览。".into());
+    }
+    if update.snapshot.get("policy").is_none()
+        || update.snapshot.get("policy") != day.get("snapshot").and_then(|v|v.get("policy")) {
+        return Err("首次开工扣减约定不能随作息修改。".into());
+    }
+    let revision = day.get("revision").and_then(|v|v.as_u64()).ok_or("记录版本无法读取")?;
+    if revision >= 9_007_199_254_740_990 {
+        return Err("记录版本超出范围".into());
+    }
+    day["snapshot"] = update.snapshot;
+    day["revision"] = (revision + 1).into();
+    crate::engagement::validate(&ledger)?;
+    next.engagement = Some(ledger);
+    Ok(())
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -278,6 +318,42 @@ fn replace(from: &Path, to: &Path) -> std::io::Result<()> {
 mod tests {
     use super::*;
     #[test]
+    fn confirmed_today_update_is_atomic_and_preserves_start_facts() {
+        let date = "2026-11-04";
+        let midnight = chrono::NaiveDate::from_ymd_opt(2026,11,4).unwrap()
+            .and_hms_opt(0,0,0).unwrap().and_utc().timestamp() - 8 * 3600;
+        let policy = serde_json::json!({"mode":"NONE","graceMinutes":0,"perMinuteMinor":0});
+        let snapshot = serde_json::json!({"version":1,"timeZone":"Asia/Shanghai","salaryMinor":1680000,
+            "monthSeconds":453600,"policy":policy,"intervals":[
+                {"date":date,"start":midnight+27000,"end":midnight+41400},
+                {"date":date,"start":midnight+45000,"end":midnight+52200}]});
+        let current = Config { engagement:Some(serde_json::json!({
+            "version":1,"firstUsedDate":date,"policy":policy,"days":{(date):{
+                "workDate":date,"state":"ACTIVE","source":"USER","firstStartedAt":(midnight+27600)*1000,
+                "endedAt":null,"snapshot":snapshot,"revision":1,"lateSeconds":600,
+                "chargedMinutes":10,"deductionMinor":1000,"estimatedEnd":false}},
+            "receipts":{},"batches":{}})), ..Config::default() };
+        let mut revised = snapshot.clone();
+        revised["intervals"][1]["end"] = (midnight+59400).into();
+        revised["monthSeconds"] = 604800.into();
+        let update = || TodaySettingsUpdate {date:date.into(), snapshot:revised.clone()};
+        let mut next = current.clone();
+        apply_today_update(&current,&mut next,update(),midnight+48000).unwrap();
+        let day = &next.engagement.as_ref().unwrap()["days"][date];
+        let mut expected = current.engagement.as_ref().unwrap()["days"][date].clone();
+        expected["snapshot"] = revised.clone(); expected["revision"] = 2.into();
+        assert_eq!(day,&expected);
+        assert!(apply_today_update(&current,&mut next,update(),midnight+86400).is_err());
+        let dir=directory();let mut store=Store::open(dir.clone()).unwrap();
+        store.commit(current.clone(),0).unwrap();
+        let mut corrected=current.clone();
+        apply_today_update(&store.config,&mut corrected,update(),midnight+48000).unwrap();
+        store.commit(corrected.clone(),1).unwrap();
+        assert!(store.commit(current,1).is_err());
+        assert_eq!(Store::open(dir.clone()).unwrap().config.engagement,corrected.engagement);
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
     fn rolling_preference_defaults_and_roundtrips() {
         let mut old = serde_json::to_value(Config::default()).unwrap();
         old["preferences"]
@@ -326,7 +402,14 @@ mod tests {
         let winner = serde_json::json!({
             "version":1,"firstUsedDate":"2026-11-03",
             "policy":{"mode":"NONE","graceMinutes":0,"perMinuteMinor":0},
-            "days":{},"receipts":{},"batches":{}
+            "days":{},"receipts":{
+                "2026-11-03:checkpoint:lunch_start": {
+                    "eventId":"2026-11-03:checkpoint:lunch_start",
+                    "sceneId":"checkpoint_lunch_start",
+                    "messageId":"checkpoint_lunch_start.1",
+                    "shownAt":1793678400000u64
+                }
+            },"batches":{}
         });
         let mut config = store.config.clone();
         assert!(config.engagement.is_none());

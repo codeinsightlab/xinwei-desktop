@@ -1,5 +1,9 @@
 mod config;
 mod engagement;
+mod window_platform;
+mod app_behavior;
+#[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
+compile_error!("薪慰 macOS 版本仅支持 Apple Silicon，请使用 aarch64-apple-darwin 目标。");
 use config::{Config, Store};
 use serde::Serialize;
 use std::{
@@ -10,9 +14,11 @@ use std::{
     },
     time::{Duration, Instant, SystemTime},
 };
+#[cfg(not(target_os = "macos"))]
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, State, WindowEvent,
 };
 use tauri_plugin_autostart::ManagerExt;
@@ -22,6 +28,8 @@ struct Desktop {
     tray_ok: AtomicBool,
     exiting: AtomicBool,
     position_dirty: AtomicBool,
+    finalizing: AtomicBool,
+    behavior: Mutex<app_behavior::ApplicationBehavior>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,25 +48,15 @@ fn show(app: &AppHandle, label: &str, focus: bool) -> Result<(), String> {
         clamp_position(&w);
     }
     w.show().map_err(|_| "窗口无法显示")?;
+    if label == "widget" {
+        let _ = w.emit("widget-visibility-changed", true);
+    }
     if focus {
         w.unminimize().map_err(|_| "无法恢复窗口")?;
         w.set_focus().map_err(|_| "无法激活窗口")?;
     }
     let _ = w.emit("refresh-now", ());
     Ok(())
-}
-fn ready_label(app: &AppHandle) -> &'static str {
-    let state = app.state::<Desktop>();
-    if state
-        .store
-        .lock()
-        .map(|s| s.config.profile.is_some() && !s.recovery_required)
-        .unwrap_or(false)
-    {
-        "widget"
-    } else {
-        "settings"
-    }
 }
 #[tauri::command]
 fn get_config(app: AppHandle, state: State<Desktop>) -> Result<LoadResult, String> {
@@ -90,6 +88,7 @@ fn apply_preferences(app: &AppHandle, previous: &Config, next: &Config) -> Resul
     Ok(())
 }
 fn commit(app: &AppHandle, s: &mut Store, c: Config, expected: u64) -> Result<Config, String> {
+    if app.state::<Desktop>().finalizing.load(Ordering::Relaxed) { return Err("正在完成退出，未提交新的修改。".into()); }
     c.validate()?;
     if s.config.revision != expected {
         return Err("配置已更新，草稿已保留。请重新预览后保存。".into());
@@ -119,10 +118,19 @@ fn save_config(
     state: State<Desktop>,
     config: Config,
     expected_revision: u64,
+    today_update: Option<config::TodaySettingsUpdate>,
 ) -> Result<Config, String> {
     let mut s = state.store.lock().map_err(|_| "配置服务不可用")?;
     let mut config = config;
     config.engagement = s.config.engagement.clone();
+    if s.config.revision != expected_revision {
+        return Err("配置已更新，草稿已保留。请重新预览后保存。".into());
+    }
+    if let Some(update) = today_update {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| "系统时间无法读取")?.as_secs() as i64;
+        config::apply_today_update(&s.config, &mut config, update, now)?;
+    }
     commit(&app, &mut s, config, expected_revision)
 }
 #[tauri::command]
@@ -169,25 +177,42 @@ fn set_preference(
     commit(&app, &mut s, c, rev)
 }
 #[tauri::command]
-fn open_settings(app: AppHandle) -> Result<(), String> {
-    show(&app, "settings", true)
+fn open_settings(app: AppHandle, section: Option<app_behavior::SettingsPage>) -> Result<(), String> {
+    app_behavior::open_settings_page(&app, section)
+}
+#[tauri::command]
+fn take_settings_page(app: AppHandle, window: tauri::WebviewWindow) -> Result<Option<app_behavior::SettingsPage>, String> {
+    if window.label() != "settings" { return Err("只能在设置中读取目标页面".into()); }
+    Ok(app.state::<Desktop>().behavior.lock().map_err(|_| "窗口服务不可用")?.settings_page.take())
 }
 #[tauri::command]
 fn show_widget(app: AppHandle) -> Result<(), String> {
-    show(&app, ready_label(&app), true)
+    app_behavior::show_widget(&app)
 }
 #[tauri::command]
-fn hide_window(app: AppHandle, label: String) -> Result<(), String> {
-    if !["settings", "widget"].contains(&label.as_str()) {
-        return Err("窗口不存在".into());
+fn start_widget_drag(window: tauri::WebviewWindow) -> Result<(), String> {
+    if window.label() != "widget" {
+        return Err("此操作仅适用于悬浮窗".into());
     }
-    if !app.state::<Desktop>().tray_ok.load(Ordering::Relaxed) {
-        return Err("托盘不可用，请使用退出按钮结束程序".into());
-    }
-    app.get_webview_window(&label)
-        .ok_or("窗口不存在")?
-        .hide()
-        .map_err(|_| "无法隐藏窗口".into())
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || {
+            if let Err(message) = window_platform::start_dragging(&target) {
+                error_notice(target.app_handle(), &message);
+            }
+        })
+        .map_err(|_| "无法开始拖动小窗".into())
+}
+#[tauri::command]
+fn is_widget_visible(app: AppHandle) -> Result<bool, String> {
+    let w = app.get_webview_window("widget").ok_or("小窗不存在")?;
+    Ok(w.is_visible().map_err(|_| "无法读取小窗可见状态")?
+        && !w.is_minimized().map_err(|_| "无法读取小窗最小化状态")?)
+}
+#[tauri::command]
+fn hide_window(app: AppHandle, window:tauri::WebviewWindow, label: String) -> Result<(), String> {
+    if label!=window.label() {return Err("不能隐藏其他窗口。".into());}
+    app_behavior::hide_window(&app,&label)
 }
 #[tauri::command]
 fn finish_setup(app: AppHandle) -> Result<(), String> {
@@ -252,12 +277,42 @@ fn reset_data(app: AppHandle, state: State<Desktop>) -> Result<(), String> {
     show(&app, "settings", true)
 }
 #[tauri::command]
-fn quit_app(app: AppHandle) {
-    app.state::<Desktop>()
-        .exiting
-        .store(true, Ordering::Relaxed);
-    save_position(&app);
-    app.exit(0);
+fn quit_app(app: AppHandle) -> Result<(),String> {
+    app_behavior::request_quit(&app)
+}
+#[tauri::command]
+fn platform_info(app:AppHandle,window:tauri::WebviewWindow)->app_behavior::PlatformInfo {
+    let info=app_behavior::platform_info(&app,window.label());
+    #[cfg(debug_assertions)]
+    eprintln!("[platform] {} os={} statusItem={} dock={} relaunch={} otherWindow={} canHide={}",window.label(),info.os,info.recovery.status_item,info.recovery.dock,info.recovery.relaunch,info.recovery.other_window,info.can_hide);
+    info
+}
+#[tauri::command]
+fn report_window_context(app:AppHandle,window:tauri::WebviewWindow,context:app_behavior::WindowContext)->Result<(),String>{app_behavior::report_context(&app,window.label(),context)}
+#[tauri::command]
+fn quit_ready(app:AppHandle,window:tauri::WebviewWindow,id:u64,dirty:bool)->Result<(),String>{app_behavior::quit_ready(&app,id,window.label(),dirty)}
+#[tauri::command]
+fn resolve_quit(app:AppHandle,window:tauri::WebviewWindow,id:u64,allow:bool)->Result<(),String>{if window.label()!="settings"{return Err("退出选择仅由设置确认。".into());}app_behavior::resolve_quit(&app,id,allow)}
+#[tauri::command]
+fn cancel_quit(app:AppHandle,id:u64,message:Option<String>){app_behavior::cancel_quit(&app,id,message.as_deref().unwrap_or(""));}
+// A monochrome template lets macOS choose a readable menu-bar color in both themes.
+#[cfg(target_os = "macos")]
+fn menubar_icon() -> tauri::image::Image<'static> {
+    let mut rgba = vec![0; 44 * 44 * 4];
+    for y in 0..44 {
+        for x in 0..44 {
+            let dx = x as f64 - 21.5;
+            let dy = y as f64 - 21.5;
+            let radius = (dx * dx + dy * dy).sqrt();
+            if (15.0..=18.0).contains(&radius)
+                || ((20..=23).contains(&x) && (10..=23).contains(&y))
+                || ((21..=31).contains(&x) && (20..=23).contains(&y))
+            {
+                rgba[(y * 44 + x) * 4 + 3] = 255;
+            }
+        }
+    }
+    tauri::image::Image::new_owned(rgba, 44, 44)
 }
 fn sync_tray(app: &AppHandle, c: &Config) {
     if let Some(tray) = app.tray_by_id("xinwei") {
@@ -294,8 +349,9 @@ fn clamp_position(w: &tauri::WebviewWindow) {
         (w.outer_position(), w.outer_size(), w.available_monitors())
     {
         let visible = monitors.iter().any(|m| {
-            let p = m.position();
-            let s = m.size();
+            let area = m.work_area();
+            let p = &area.position;
+            let s = &area.size;
             pos.x >= p.x
                 && pos.y >= p.y
                 && pos.x as i64 + size.width as i64 <= p.x as i64 + s.width as i64
@@ -303,8 +359,9 @@ fn clamp_position(w: &tauri::WebviewWindow) {
         });
         if !visible {
             if let Ok(Some(m)) = w.primary_monitor() {
-                let p = m.position();
-                let s = m.size();
+                let area = m.work_area();
+                let p = &area.position;
+                let s = &area.size;
                 let _ = w.set_position(tauri::PhysicalPosition::new(
                     p.x + s.width.saturating_sub(size.width + 24) as i32,
                     p.y + 40,
@@ -314,42 +371,48 @@ fn clamp_position(w: &tauri::WebviewWindow) {
     }
 }
 fn save_position(app: &AppHandle) {
+    if let Err(e)=save_position_checked(app){eprintln!("save-window-position failed: {e}");}
+}
+fn save_position_checked(app:&AppHandle)->Result<(),String> {
     let state = app.state::<Desktop>();
     if let Some(w) = app.get_webview_window("widget") {
-        if let Ok(p) = w.outer_position() {
-            if let Ok(s) = state.store.lock() {
-                let _ = config::atomic_write(
+        let p=w.outer_position().map_err(|_|"无法读取小窗位置")?;
+        let s=state.store.try_lock().map_err(|_|"配置保存仍在进行，请稍后重试")?;
+        config::atomic_write(
                     &s.directory.join("window.json"),
                     serde_json::json!({"x":p.x,"y":p.y}).to_string().as_bytes(),
-                );
-            }
-        }
+                )?;
     }
+    Ok(())
 }
 pub fn run() {
+    let autostart = tauri_plugin_autostart::Builder::new()
+        .app_name("Xinwei")
+        .arg("--autostart");
+    #[cfg(target_os = "macos")]
+    let autostart = autostart.macos_launcher(tauri_plugin_autostart::MacosLauncher::LaunchAgent);
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            let _ = show(app, ready_label(app), true);
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            let result=if args.iter().any(|a|a=="--autostart"){app_behavior::background_launch(app,true)}else{app_behavior::activate(app)};
+            if let Err(e)=result{error_notice(app,&e);}
         }))
-        .plugin(
-            tauri_plugin_autostart::Builder::new()
-                .app_name("Xinwei")
-                .arg("--autostart")
-                .build(),
-        )
+        .plugin(autostart.build())
         .invoke_handler(tauri::generate_handler![
             get_config,
             save_config,
             save_engagement,
             set_preference,
             open_settings,
+            take_settings_page,
             show_widget,
             hide_window,
+            is_widget_visible,
+            start_widget_drag,
             finish_setup,
             show_demo,
             start_fresh,
             reset_data,
-            quit_app
+            quit_app,platform_info,report_window_context,quit_ready,resolve_quit,cancel_quit
         ])
         .setup(|app| {
             let mut store =
@@ -367,7 +430,12 @@ pub fn run() {
                 tray_ok: AtomicBool::new(false),
                 exiting: AtomicBool::new(false),
                 position_dirty: AtomicBool::new(false),
+                finalizing: AtomicBool::new(false),
+                behavior: Mutex::new(app_behavior::ApplicationBehavior::default()),
             });
+            window_platform::create_windows(app.handle())?;
+            window_platform::configure(app.handle())?;
+            window_platform::configure_close_shortcut(app.handle())?;
             if let Some(w) = app.get_webview_window("widget") {
                 let _ = w.set_always_on_top(config.preferences.always_on_top);
                 if let Some(v) = position {
@@ -376,41 +444,47 @@ pub fn run() {
                     }
                 } else if let Ok(Some(m)) = w.primary_monitor() {
                     let size = w.outer_size()?;
+                    let area = m.work_area();
                     let _ = w.set_position(tauri::PhysicalPosition::new(
-                        m.position().x + m.size().width.saturating_sub(size.width + 24) as i32,
-                        m.position().y + 40,
+                        area.position.x + area.size.width.saturating_sub(size.width + 24) as i32,
+                        area.position.y + 16,
                     ));
                 }
             }
+            #[cfg(not(target_os = "macos"))]
             let icon = app
                 .default_window_icon()
                 .cloned()
                 .unwrap_or_else(|| tauri::image::Image::new_owned(vec![66; 32 * 32 * 4], 32, 32));
+            #[cfg(target_os = "macos")]
+            let icon = menubar_icon();
             let tray = TrayIconBuilder::with_id("xinwei")
                 .icon(icon)
-                .tooltip("薪慰 · 每一秒，都算数")
+                .icon_as_template(cfg!(target_os = "macos"))
+                .tooltip(format!("{} · 每一秒，都算数",app.config().product_name.as_deref().unwrap_or("薪慰")))
                 .menu(&tray_menu(app.handle(), &config)?)
-                .show_menu_on_left_click(false)
-                .on_tray_icon_event(|tray, event| {
-                    if matches!(
-                        event,
-                        TrayIconEvent::Click {
-                            button: MouseButton::Left,
-                            button_state: MouseButtonState::Up,
-                            ..
-                        }
-                    ) {
-                        let _ = show(tray.app_handle(), ready_label(tray.app_handle()), true);
+                .show_menu_on_left_click(cfg!(target_os = "macos"));
+            #[cfg(not(target_os = "macos"))]
+            let tray = tray.on_tray_icon_event(|tray, event| {
+                if matches!(
+                    event,
+                    TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
                     }
-                })
+                ) {
+                    if let Err(e)=app_behavior::show_widget(tray.app_handle()){error_notice(tray.app_handle(),&e);}
+                }
+            });
+            let tray = tray
                 .on_menu_event(|app, event| {
                     let result = match event.id.as_ref() {
-                        "show" => show(app, ready_label(app), true),
-                        "settings" => show(app, "settings", true),
-                        "hide" => hide_window(app.clone(), "widget".into()),
+                        "show" => app_behavior::show_widget(app),
+                        "settings" => app_behavior::open_settings(app),
+                        "hide" => app_behavior::hide_window(app, "widget"),
                         "quit" => {
-                            quit_app(app.clone());
-                            Ok(())
+                            quit_app(app.clone())
                         }
                         "pin" | "privacy" => {
                             let state = app.state::<Desktop>();
@@ -449,22 +523,30 @@ pub fn run() {
             app.state::<Desktop>()
                 .tray_ok
                 .store(tray_ok, Ordering::Relaxed);
-            if bad || config.profile.is_none() || !tray_ok {
+            if bad || config.profile.is_none() {
                 show(app.handle(), "settings", true).map_err(std::io::Error::other)?;
-            } else if !std::env::args().any(|a| a == "--autostart")
-                || config.preferences.show_widget_on_launch
-            {
-                show(app.handle(), "widget", false).map_err(std::io::Error::other)?;
+            } else if std::env::args().any(|a|a=="--autostart") {
+                app_behavior::background_launch(app.handle(),false).map_err(std::io::Error::other)?;
+            } else {
+                app_behavior::activate(app.handle()).map_err(std::io::Error::other)?;
             }
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let mut last = SystemTime::now();
                 let mut instant = Instant::now();
+                #[cfg(debug_assertions)]
+                let mut previous_window_state=String::new();
                 loop {
                     std::thread::sleep(Duration::from_secs(2));
                     let state = handle.state::<Desktop>();
                     if state.exiting.load(Ordering::Relaxed) {
                         break;
+                    }
+                    #[cfg(debug_assertions)]
+                    {
+                        let mut windows=handle.webview_windows().values().map(|w|format!("{}:visible={:?},minimized={:?}",w.label(),w.is_visible(),w.is_minimized())).collect::<Vec<_>>();windows.sort();
+                        let status=format!("hidden={:?}; {}",window_platform::application_hidden(&handle),windows.join("; "));
+                        if status!=previous_window_state{eprintln!("[platform-window-state] {status}");previous_window_state=status;}
                     }
                     if state.position_dirty.swap(false, Ordering::Relaxed) {
                         save_position(&handle);
@@ -491,8 +573,11 @@ pub fn run() {
         })
         .on_window_event(|w, event| match event {
             WindowEvent::CloseRequested { api, .. } => {
-                api.prevent_close();
-                let _ = w.emit("request-close", ());
+                if !w.state::<Desktop>().exiting.load(Ordering::Relaxed) {
+                    api.prevent_close();
+                    // Emitter::emit broadcasts even when called on a Window.
+                    if let Err(e)=app_behavior::close_window(w.app_handle(),w.label()){error_notice(w.app_handle(),&e);}
+                }
             }
             WindowEvent::Moved(_) => {
                 if w.label() == "widget" {
@@ -502,10 +587,26 @@ pub fn run() {
                 }
             }
             WindowEvent::Focused(true) => {
+                app_behavior::focused(w.app_handle(),w.label());
                 let _ = w.emit("refresh-now", ());
+            }
+            WindowEvent::Focused(false) if w.label() == "widget" => {
+                let _ = w.emit("widget-blur", ());
             }
             _ => {}
         })
-        .run(tauri::generate_context!())
-        .expect("无法启动薪慰");
+        .build(tauri::generate_context!())
+        .expect("无法启动薪慰")
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                if !app.state::<Desktop>().exiting.load(Ordering::Relaxed){api.prevent_exit();if let Err(e)=app_behavior::request_quit(app){error_notice(app,&e);}}
+            },
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => {
+                if let Err(e) = app_behavior::activate(app) {
+                    error_notice(app, &e);
+                }
+            }
+            _ => {}
+        });
 }

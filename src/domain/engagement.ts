@@ -7,11 +7,13 @@ import {
 import type { EngagementDay, Ledger, Policy, Receipt } from './engagement-money';
 import { contextScenes, FATIGUE, receipt, returnScene, scenes, selectReceipt, TAP_COOLDOWN_MS } from './engagement-copy';
 import type { ContextKey } from './engagement-copy';
+import { canClaimCheckpoint, checkpointId, type CheckpointKind } from './checkpoints';
 
 export * from './engagement-money';
 export * from './engagement-copy';
 export type Command =
   | {type:'visit'|'rollover'|'start'|'end'|'reopen'|'tap'}
+  | {type:'checkpoint';kind:CheckpointKind}
   | {type:'policy';policy:Policy}
   | {type:'settle';date:string;end:number}
   | {type:'catchup';dates:string[];batchId:string}
@@ -163,6 +165,15 @@ export function reduceEngagement(config: Config, command: Command, timestamp: nu
   const ledger = clone(config.engagement ?? newLedger(now));
   const before = JSON.stringify(ledger);
   let event: Receipt | undefined;
+  // Automatic dialogue is metadata only. Do not enter the manual-action path
+  // that updates dates, day states, snapshots, deductions or work timestamps.
+  if (command.type === 'checkpoint') {
+    if (config.preferences.showFunText && canClaimCheckpoint(ledger, command.kind, now)) {
+      event = receipt(ledger, checkpointId(date, command.kind), 'checkpoint_' + command.kind, seed);
+      if (event) event.shownAt = now;
+    }
+    return {ledger, event, changed:before !== JSON.stringify(ledger)};
+  }
   const highWater = ledger.lastSeenDate ?? ledger.lastInteractionDate ?? ledger.firstUsedDate;
   if (date < highWater) {
     if (command.type === 'visit' || command.type === 'rollover') return {ledger,event,changed:false};

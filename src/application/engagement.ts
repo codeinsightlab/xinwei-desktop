@@ -4,6 +4,7 @@ import { desktop } from '../platform/desktop';
 import { clock } from './clock';
 import { reduceEngagement } from '../domain/engagement';
 import type { Command, Receipt } from '../domain/engagement';
+import { trackWrite,recordWriteFailure,quitId } from './activity';
 
 export const interaction = ref<Receipt>();
 export const engagementBusy = ref(false);
@@ -12,6 +13,7 @@ let serial: Promise<unknown> = Promise.resolve();
 // Each window proposes a change against an observed revision. The platform owns
 // the compare-and-swap and broadcasts only after replacing the file successfully.
 export function engage(command: Command, expectedRevision?: number): Promise<boolean> {
+  if(quitId.value!==undefined && command.type==='checkpoint')return Promise.resolve(false);
   const clickedAt = clock.now();
   async function commit() {
     engagementBusy.value = true;
@@ -29,7 +31,7 @@ export function engage(command: Command, expectedRevision?: number): Promise<boo
           return true;
         }
         try {
-          config.value = await desktop.saveEngagement(result.ledger, current.revision);
+          config.value = await desktop.saveEngagement(result.ledger, current.revision,command.type==='checkpoint');
           if (result.event) interaction.value = result.event;
           return true;
         } catch (error) {
@@ -39,13 +41,15 @@ export function engage(command: Command, expectedRevision?: number): Promise<boo
       }
       return false;
     } catch (error) {
-      notice.value = error instanceof Error ? error.message : String(error);
+      if (command.type === 'checkpoint') console.warn('时间互动未保存，已跳过', error);
+      else {recordWriteFailure();notice.value = error instanceof Error ? error.message : String(error);}
       return false;
     } finally {
       engagementBusy.value = false;
     }
   }
-  const result = serial.then(commit);
+  const previous=serial;
+  const result = trackWrite(()=>previous.then(commit));
   serial = result.catch(() => {});
   return result;
 }

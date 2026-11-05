@@ -89,6 +89,7 @@ struct Receipt {
     event_id: String,
     scene_id: String,
     message_id: String,
+    shown_at: Option<u64>,
 }
 
 impl Day {
@@ -147,7 +148,11 @@ pub fn validate(value: &Value) -> Result<(), String> {
             .is_some_and(|d| d < ledger.first_used_date)
         || !ledger.days.iter().all(|(key, day)| day.valid(*key))
         || !ledger.receipts.iter().all(|(key, r)| {
-            key == &r.event_id && !r.scene_id.is_empty() && !r.message_id.is_empty()
+            key == &r.event_id
+                && !r.scene_id.is_empty()
+                && !r.message_id.is_empty()
+                && r.shown_at.is_none_or(|at| at <= 9_007_199_254_740_991)
+                && (!r.scene_id.starts_with("checkpoint_") || r.shown_at.is_some())
         })
         || !ledger.batches.iter().all(|(batch, dates)| {
             dates.iter().all(|d| {

@@ -12,7 +12,7 @@
   --overlay:#15161766; --progress-bg:#e4e5df;
   --shadow:0 5px 18px #20232112,0 1px 3px #20232109;
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px;
-  --radius-sm:8px; --radius-button:10px; --radius-card:14px; --radius-widget:18px;
+  --radius-sm:8px; --radius-button:10px; --radius-card:14px; --radius-widget:24px;
   --font-body:13px; --font-label:11px; --font-title:26px; --font-amount:38px;
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){

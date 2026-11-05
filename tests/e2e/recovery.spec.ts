@@ -13,9 +13,9 @@ test('returning users can reply, explicitly preview catchup, and undo that batch
   await preview.getByRole('button',{name:'确认补算'}).click();
   await expect(page.getByRole('dialog')).toContainText('补算已保存');
   await page.getByRole('button',{name:'撤销本批补算'}).click();
-  await expect(page.locator('.record-day')).toHaveCount(1);
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button',{name:'开工',exact:true})).toBeVisible();
+  await expect(page.locator('.record-entry')).toHaveCount(1);
+  await page.getByRole('button',{name:'今日明细',exact:true}).click();
+  await expect(page.locator('.work-records')).toContainText('今天还没有记录');
 });
 
 test('the user can settle a previous day while keeping today unopened', async({page})=>{
@@ -25,10 +25,10 @@ test('the user can settle a previous day while keeping today unopened', async({p
   await page.getByRole('button',{name:'用所选时间'}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button',{name:'本月记录',exact:true}).click();
-  await page.locator('.record-day>summary').first().click();
-  await expect(page.getByRole('dialog')).toContainText('94 分钟');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button',{name:'开工',exact:true})).toBeVisible();
+  await page.locator('.record-entry>summary').first().click();
+  await expect(page.locator('.work-records')).toContainText('94 分钟');
+  await page.getByRole('button',{name:'今日明细',exact:true}).click();
+  await expect(page.locator('.work-records')).toContainText('今天还没有记录');
 });
 
 test('failed storage keeps both an unopened day and an unsaved policy draft', async({page})=>{

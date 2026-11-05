@@ -38,6 +38,7 @@ export interface Receipt {
   replyId?: string;
   skipped?: boolean;
   responded?: boolean;
+  shownAt?: number;
 }
 export interface Ledger {
   version: 1;
