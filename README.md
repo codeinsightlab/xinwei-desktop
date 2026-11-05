@@ -1,13 +1,25 @@
 <p align="center"><img src="src/assets/mascot-work.svg" width="112" alt="薪慰的桌面伙伴" /></p>
 <h1 align="center">薪慰 Xinwei</h1>
 <p align="center"><strong>每一秒，都算数。</strong></p>
-<p align="center">Windows / macOS 桌面工资进度小玩具 · 本地运行 · 无需账号 · 深浅主题</p>
+<p align="center">带工资估算和轻幽默互动的桌面搭子 · Windows / macOS · 本地运行 · 无需账号</p>
 
 填好月薪和作息，每天在小窗点一次 **开工**，看今天的工资估算一点点滚动。收工时，薪慰会把今天的金额和多待的时间记下来。想接一句梗就接，不想聊也可以直接关掉。
 
+不是考勤软件，不参与公司薪资结算。显示金额用于个人趣味估算，不代表实际到账；晚收工只记时间，不增加工资。
+
+## 下载与官网
+
+目前尚未发布公开安装包，Windows x64 与 macOS Apple Silicon 均为**公开下载准备中**。发布后可在 [Releases](https://github.com/codeinsightlab/xinwei-desktop/releases) 查看版本说明和实际附件。
+
+- [App 项目仓库](https://github.com/codeinsightlab/xinwei-desktop)：桌面应用源码、产品说明与问题反馈入口。
+- 官网：准备中，计划域名为 `xinwei.learnaiwithcode.com`，尚未完成上线验证。
+- 平台：Windows x64 需要 WebView2；macOS 面向 Apple Silicon（M 系列），最低 macOS 12，不支持 Intel。
+
+官网仅提供虚构数据和互动演示，与桌面记录隔离。官网工程在本机独立维护，不纳入本仓库；本仓库的运行、测试和构建命令均针对桌面应用。
+
 ## 看看薪慰
 
-以下界面使用虚构工资和固定的北京时间。小窗为304 × 250逻辑像素（1.2.0恢复原尺寸）；今日明细和本月记录在设置窗口查看。
+以下界面使用虚构工资和固定的北京时间。小窗为304 × 250逻辑像素；今日明细和本月记录在独立设置窗口查看。
 
 | 今天还没开张 | 开工后，金额开始滚动 |
 | :---: | :---: |

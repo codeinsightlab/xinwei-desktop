@@ -5,3 +5,8 @@ src-tauri/target/
 *.log
 artifacts/
 releases/
+
+# Website and its local-only deployment/acceptance files are maintained separately.
+/website/
+/.github/workflows/deploy-website.yml
+/docs/reviews/2026-11-05-website-handoff-review.md
