@@ -1,0 +1,3 @@
+# Keep Rust version metadata stable on fresh Windows checkouts.
+src-tauri/Cargo.lock text eol=lf
+src-tauri/Cargo.toml text eol=lf

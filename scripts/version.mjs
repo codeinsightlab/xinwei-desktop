@@ -7,7 +7,7 @@ const pkg = JSON.parse(originals.get('package.json'));
 const npmLock = JSON.parse(originals.get('package-lock.json'));
 const tauri = JSON.parse(originals.get('src-tauri/tauri.conf.json'));
 const cargoPattern = /(^\[package\][\s\S]*?^version\s*=\s*")([^"]+)(")/m;
-const lockPattern = /(^\[\[package\]\]\nname = "xinwei-desktop"\nversion = ")([^"]+)(")/m;
+const lockPattern = /(^\[\[package\]\]\r?\nname = "xinwei-desktop"\r?\nversion = ")([^"]+)(")/m;
 const cargoVersion = originals.get('src-tauri/Cargo.toml').match(cargoPattern)?.[2];
 const lockVersion = originals.get('src-tauri/Cargo.lock').match(lockPattern)?.[2];
 const versions = [pkg.version, npmLock.version, npmLock.packages[''].version, tauri.version, cargoVersion, lockVersion];

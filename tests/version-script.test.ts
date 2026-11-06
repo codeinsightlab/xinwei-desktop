@@ -22,6 +22,22 @@ function fixture() {
 afterEach(() => { for (const root of fixtures.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
 describe('交付版本同步', () => {
+  for (const endings of ['crlf', 'mixed']) it(`Windows ${endings} 换行可校验和递增，不丢失锁文件内容`, () => {
+    const { root, run } = fixture();
+    for (const name of ['Cargo.toml', 'Cargo.lock']) {
+      const file=join(root,'src-tauri',name);
+      const original=readFileSync(file,'utf8');
+      writeFileSync(file,endings==='crlf'?original.replaceAll('\n','\r\n'):original.replace(/\n/g,(_,offset)=>offset%2?'\r\n':'\n'));
+    }
+    const lock=join(root,'src-tauri/Cargo.lock');
+    const before=readFileSync(lock,'utf8');
+    expect(run('check')).toContain('1.2.3');
+    expect(run('patch')).toContain('1.2.4');
+    expect(run('check')).toContain('1.2.4');
+    expect(readFileSync(lock,'utf8')).toBe(before.replace('version = "1.2.3"','version = "1.2.4"'));
+    writeFileSync(lock,before);
+    expect(()=>run('check')).toThrow();
+  });
   it('patch/minor/major递增并通过跨文件校验，不改第三方依赖版本', () => {
     const { root, run } = fixture();
     expect(run('check')).toContain('1.2.3');
