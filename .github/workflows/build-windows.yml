@@ -42,8 +42,9 @@ jobs:
       - run: npm ci
       - run: npm run version:check
       - run: npm test
-      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib -- --test-threads=1
       - run: npm run desktop:build -- --target x86_64-pc-windows-msvc --bundles nsis --ci
+      # Tauri CLI first synchronizes platform-specific Cargo features with the config.
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib -- --test-threads=1
       - name: Collect installer and build receipt
         shell: pwsh
         run: |
