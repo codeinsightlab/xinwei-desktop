@@ -12,7 +12,7 @@
 目前尚未发布公开安装包，Windows x64 与 macOS Apple Silicon 均为**公开下载准备中**。发布后可在 [Releases](https://github.com/codeinsightlab/xinwei-desktop/releases) 查看版本说明和实际附件。
 
 - [App 项目仓库](https://github.com/codeinsightlab/xinwei-desktop)：桌面应用源码、产品说明与问题反馈入口。
-- 官网：准备中，计划域名为 `xinwei.learnaiwithcode.com`，尚未完成上线验证。
+- 官网：[xinwei.learnaiwithcode.com](https://xinwei.learnaiwithcode.com)，提供虚构工资与轻互动演示。
 - 平台：Windows x64 需要 WebView2；macOS 面向 Apple Silicon（M 系列），最低 macOS 12，不支持 Intel。
 
 官网仅提供虚构数据和互动演示，与桌面记录隔离。官网源码位于 [`website/`](website/README.md)，有独立依赖和构建。每次推送 `main` 会由 GitHub Actions 检查并部署到 Cloudflare Workers，不触发桌面打包。
