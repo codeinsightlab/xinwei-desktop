@@ -41,3 +41,11 @@
 https://github.com/codeinsightlab/xinwei-desktop/actions/runs/42170261326 全部成功。构建回执sourceRevision为63b156e51fc6133ef28639a151b45933e8e4d295，明确包含本轮换行修复和回归测试；Windows runner前端/脚本90项、Rust15项通过，NSIS安装包构建、收集和上传均成功。下载后计算SHA256与回执一致：07dd670d89dff56238993425ffc84cf45cd7ba294cbd36c2059e2505481ca73e。本机忽略目录artifacts/windows-ci-42170261326保留安装包、回执和校验值。
 
 现存upload-artifact动作运行时弃用提示属于非失败警告，runner已强制Node24并成功上传；本次未为消除提示升级Action主版本。原生Windows交互仍未实机验收，签名仍为unsigned，不能将CI构建通过说成安装运行或系统交互通过。没有更改桌面业务逻辑、版本或个人数据。
+
+## 2026-11-06 双平台持续检查扩展
+
+用户要求每次推送自动检查macOS和Windows。新增desktop-checks.yml：push（所有分支/标签）、pull_request、workflow_dispatch均触发；矩阵为macos-15的真实arm64和windows-2022的x64，Mac步骤明确断言uname架构。选择依据GitHub官方runner-images当前标签表，macos-15为arm64，不使用已经退役的macos-14或误用镜像内部名称macos-15-arm64。来源：https://github.com/actions/runner-images 。
+
+工具链固定Node22.23.1和本机已验证的Rust1.98.0；每端执行npm ci、版本检查、前端单元、Tauri CLI原生debug/no-bundle构建及指定target的Cargo锁定/串行测试。保留CLI先于Cargo顺序；不打安装包、签名或发布。Rust缓存采用官方actions/cache v5固定提交caa296126883cff596d87d8935842f9db880ef25（已核对Node24），按OS/target/Rust/依赖和配置键隔离。任务超时30分钟，fail-fast=false，同ref旧检查可取消。原有固定源码安装包和官网发布工作流保持原样。
+
+本节仅改CI及文档，不改业务代码、依赖或应用版本。实际远端两平台结果随后追加。

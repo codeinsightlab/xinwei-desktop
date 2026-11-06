@@ -176,3 +176,9 @@ src/styles/         视觉变量与全局样式
 src-tauri/          Rust 桌面能力与打包配置
 docs/               PRD、设计规范与产品截图
 ```
+
+## 双平台自动CI
+
+`Desktop checks`在每次push、PR和手动触发时，并行检查macOS Apple Silicon（macos-15）和Windows x64（windows-2022）；所有分支均检查，没有路径过滤。两端固定Node.js 22.23.1与Rust 1.98.0，依次验证版本、执行前端单元测试、通过Tauri CLI完成原生debug构建/前端类型检查，再执行对应目标的Rust测试。原生构建不生成安装包、不签名或发布，也不替代窗口交互实机验收。
+
+同一分支的新推送取消过期检查，两端失败互不取消；Rust依赖和编译缓存按系统/目标/工具链隔离。按固定源码SHA生成正式Windows安装包仍使用独立的`Build Windows installer`工作流。
