@@ -97,10 +97,12 @@ macOS 点击顶部菜单栏的时钟图标可显示小窗、打开设置或退�
 
 ```powershell
 npm test
-cargo test --manifest-path src-tauri/Cargo.toml --lib
 npm run build
 npm run desktop:build
+cargo test --manifest-path src-tauri/Cargo.toml --locked --lib -- --test-threads=1
 ```
+
+跨macOS/Windows开发统一使用Node.js 22.23.1、`npm ci`和已提交的锁文件。先通过对应平台的Tauri CLI构建，再直接执行Cargo测试：CLI会按平台配置同步原生功能，避免Windows误带macOS私有API。不要靠删除Mac功能或跳过测试规避平台差异。版本脚本兼容LF/CRLF，Rust版本元数据另由`.gitattributes`固定LF。Windows安装包CI使用固定源码SHA，完整构建和测试通过后才上传；构建通过不代表原生交互已验收。
 
 Windows 产物：
 
