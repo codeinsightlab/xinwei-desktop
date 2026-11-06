@@ -6,7 +6,5 @@ src-tauri/target/
 artifacts/
 releases/
 
-# Website and its local-only deployment/acceptance files are maintained separately.
-/website/
-/.github/workflows/deploy-website.yml
+# Local website acceptance notes are not part of the public source.
 /docs/reviews/2026-11-05-website-handoff-review.md

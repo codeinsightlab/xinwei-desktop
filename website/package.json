@@ -1,0 +1,33 @@
+{
+  "name": "xinwei-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "check": "astro check && tsc --noEmit -p tsconfig.tools.json",
+    "test": "tsx --test tests/*.test.ts",
+    "test:built": "node --test tests-built/*.test.mjs",
+    "test:dom": "tsx --test tests-dom/*.test.ts",
+    "build": "astro build",
+    "build:qa": "node scripts/build-qa.mjs",
+    "preview": "node scripts/preview.mjs",
+    "preview:qa": "node scripts/preview.mjs --qa",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:check": "node scripts/deploy.mjs --dry-run",
+    "verify:live": "node scripts/verify-live.mjs",
+    "assets:generate": "node scripts/mascots.mjs",
+    "assets:og": "node scripts/og.mjs"
+  },
+  "dependencies": { "astro": "6.4.8" },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "sharp": "0.35.5",
+    "linkedom": "0.18.15",
+    "typescript": "6.0.3",
+    "wrangler": "4.157.0"
+  }
+}

@@ -15,7 +15,15 @@
 - 官网：准备中，计划域名为 `xinwei.learnaiwithcode.com`，尚未完成上线验证。
 - 平台：Windows x64 需要 WebView2；macOS 面向 Apple Silicon（M 系列），最低 macOS 12，不支持 Intel。
 
-官网仅提供虚构数据和互动演示，与桌面记录隔离。官网工程在本机独立维护，不纳入本仓库；本仓库的运行、测试和构建命令均针对桌面应用。
+官网仅提供虚构数据和互动演示，与桌面记录隔离。官网源码位于 [`website/`](website/README.md)，有独立依赖和构建。每次推送 `main` 会由 GitHub Actions 检查并部署到 Cloudflare Workers，不触发桌面打包。
+
+已提交的官网修改随 `git push origin main` 自动发布。需要重新发布远端 `main` 时，在仓库根运行一条命令：
+
+```sh
+npm run website:deploy
+```
+
+该命令使用已登录的 GitHub CLI 触发发布并等待结果，不上传本地未提交内容。Cloudflare 凭据只配置在 GitHub Actions Secrets，详见[官网运行与发布说明](website/README.md)。以下运行、测试和构建命令针对桌面应用。
 
 ## 看看薪慰
 

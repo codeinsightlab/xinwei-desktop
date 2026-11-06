@@ -1,0 +1,73 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import Mascot from '../components/Mascot.astro';
+import Demo from '../components/Demo.astro';
+import { site, downloads } from '../content/site';
+import { scenes } from '../content/scenarios';
+---
+<Base>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="site-header wrap">
+    <a class="brand" href="/" aria-label="薪慰 Xinwei 首页"><img src="/assets/mascot/welcome.svg" width="48" height="36" alt="" /><span>薪慰 <b>Xinwei</b></span></a>
+    <nav aria-label="主导航">{site.nav.map(item=><a href={item.href}>{item.label}</a>)}<a href={site.author} target="_blank" rel="noopener noreferrer">作者 GitHub <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="section-kicker">桌面工资估算搭子 / XINWEI</p>
+        <h1 id="hero-title">上班已经够苦了，<br />看看钱涨，<br />多少有点<span class="hand-underline">安慰</span>。</h1>
+        <p class="hero-description">{site.intro.map(line=><span>{line}</span>)}</p>
+        <div class="hero-actions"><a class="button primary" href="#download">查看下载 <span aria-hidden="true">↓</span></a><a class="button outline" href="#hello">先玩一下 <Icon name="arrow" /></a></div>
+        <p class="secondary hero-aside">不是考勤 · 想接梗就接</p>
+      </div>
+      <Demo />
+    </section>
+    <div class="manifesto wrap"><span aria-hidden="true"></span><p>不是催你上班，<br class="mobile-break" />是陪你把今天过下去。</p><span aria-hidden="true"></span></div>
+    <section id="hello" class="hello-section" aria-labelledby="hello-title">
+      <div class="wrap hello-grid">
+        <div class="section-heading"><p class="section-kicker">01 / SAY HELLO</p><h2 id="hello-title">试着和它<br />聊两句<span class="hand-underline">。</span></h2><p class="secondary">五个小场景，接不接都随你。</p></div>
+        <div class="conversation">
+          <div class="scene-tabs" role="group" aria-label="选择虚构互动场景">{scenes.map((scene,i)=><button class:list={['scene-tab',{'selected':i===0}]} data-scene={scene.id} aria-pressed={i===0?'true':'false'} disabled>{scene.label}</button>)}</div>
+          <div class="scene-stage">
+            <img id="scene-mascot" class="mascot scene-mascot" src="/assets/mascot/working.svg" width="240" height="180" alt="" aria-hidden="true" loading="lazy" />
+            <div class="scene-content">
+              <p class="scene-sample">独立虚构场景 · 不影响上方演示</p>
+              <p id="scene-facts" class="scene-facts">09:10 开工 · 晚来 10 分钟 · 不扣减</p>
+              <p id="scene-chosen" class="scene-chosen" hidden></p>
+              <p class="speech" id="scene-message">{scenes[0]!.opening}</p>
+              <div class="reply-actions" id="reply-actions">{scenes[0]!.replies.map(reply=><button class="button outline" disabled>{reply.label}</button>)}</div>
+              <button id="scene-skip" class="text-button skip-conversation" disabled>跳过 <span aria-hidden="true">→</span></button>
+            </div>
+          </div>
+          <noscript><p class="noscript-note">开启 JavaScript 后可选择场景、接话和播放工资演示。这里的工资与对话均为虚构样例。</p></noscript>
+        </div>
+      </div>
+    </section>
+    <section id="together" class="together wrap" aria-labelledby="together-title">
+      <p class="section-kicker">02 / A DAY TOGETHER</p><h2 id="together-title">开工有人接，<br class="mobile-break" />收工有人送。</h2>
+      <div class="day-steps">{site.steps.map(step=><article class="day-step"><div class="step-art"><span class="step-number">{step.number}</span><Mascot pose={step.pose} /></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div>
+      <p class="day-note"><Icon name="clock" /><span>午休暂停；晚收工只记时间，不多算工资。</span></p>
+    </section>
+    <section class="rules wrap" aria-labelledby="rules-title">
+      <div class="rules-intro"><p class="section-kicker">YOUR DAY, YOUR RULES</p><h2 id="rules-title">这里，<br />你说了算。</h2><Mascot pose="quiet" /></div>
+      <div class="rule-lines">
+        <details><summary><Icon name="clock" /><span>晚来怎么计算，自己定。</span><span class="chevron" aria-hidden="true">›</span></summary><p>默认不扣款。也可以给自己约定按分钟扣减和宽限时间；首次开工时确定，只扣一次。这里是说明，不修改上方演示或桌面设置。</p></details>
+        <div class="privacy-rule"><Icon name="eye" /><span>你的工资，不用给别人看。</span><button class="privacy-toggle" data-privacy aria-pressed="false" disabled><span class="toggle-track" aria-hidden="true"><span></span></span><span class="privacy-label">隐藏演示金额</span></button></div>
+        <details><summary><Icon name="chat" /><span>想接一句梗，也可以直接走。</span><span class="chevron" aria-hidden="true">›</span></summary><p>互动可以跳过，趣味反馈也可以在桌面应用中关闭。接话不改变收入，这里的选择不会替你操作桌面应用。</p></details>
+      </div>
+    </section>
+    <section id="download" class="download-section wrap" aria-labelledby="download-title">
+      <div class="download-intro"><p class="section-kicker">03 / TAKE IT EASY</p><h2 id="download-title">把这一点安慰，<br />放到桌面上。</h2><Mascot pose="hero" /></div>
+      <div class="download-options">
+        {downloads.map(item=><article class="download-card" data-download-status={item.status}><Icon name={item.platform==='windows-x64'?'windows':'mac'} /><div><h3>{item.label}</h3><p>{item.status==='pending'?'公开下载准备中':item.status==='unavailable'?'暂不可用':''}</p><small>{item.requirements}</small>{item.status==='available' && item.url && <a class="download-link" href={item.url}>下载 {item.version}<Icon name="arrow" /></a>}{item.checksum && <small>SHA-256: {item.checksum}</small>}</div></article>)}
+        <p class="download-note">安装包准备好后，<br />会在这里放上真实入口。</p>
+        <a class="author-link" href={site.repository} target="_blank" rel="noopener noreferrer"><Icon name="github" />App 项目仓库 <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="faq"><h3 class="sr-only">常见问题</h3>{site.faq.map(item=><details><summary><span>{item.q}</span><span class="chevron" aria-hidden="true">›</span></summary><p>{item.a}</p></details>)}</div>
+    </section>
+  </main>
+  <footer class="site-footer wrap"><div class="footer-signoff"><span></span><p>薪慰 Xinwei <i>/</i> 每一秒，都算数。</p><span></span></div><p>工资用于个人趣味估算，不代表实际到账。桌面记录保存在本机；官网仅提供临时虚构演示。</p><p>不必每一秒都努力。属于你的时间，也算数。</p></footer>
+  <p id="action-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+  <script>import '../lib/client';</script>
+</Base>

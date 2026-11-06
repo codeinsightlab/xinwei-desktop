@@ -14,7 +14,8 @@
     "desktop:build": "tauri build",
     "desktop:dev:mac": "tauri dev --target aarch64-apple-darwin",
     "desktop:build:mac": "PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH tauri build --target aarch64-apple-darwin",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "website:deploy": "node scripts/deploy-website.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

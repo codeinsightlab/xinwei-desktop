@@ -1,0 +1,14 @@
+---
+interface Props { name: 'eye' | 'arrow' | 'clock' | 'chat' | 'windows' | 'mac' | 'github'; }
+const { name } = Astro.props;
+const paths = {
+  eye:'M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm9-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
+  arrow:'M5 12h14m-6-6 6 6-6 6',
+  clock:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v5l4 2',
+  chat:'M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 7h.01M12 11h.01M16 11h.01',
+  windows:'M3 5l8-1v8H3V5Zm10-1 8-1v9h-8V4ZM3 14h8v7l-8-1v-6Zm10 0h8v8l-8-1v-7Z',
+  mac:'M4 3h16v14H4V3Zm-2 18h20M10 17v4m4-4v4M8 7h8',
+  github:'M9 19c-4 1-4-2-6-2m12 4v-3c0-1 .3-2 1-2 3-.4 5-2 5-5 0-2-1-3-2-4 .2-1 .2-3-.3-4-2 0-3 1-4 1a13 13 0 0 0-6 0C8 3 7 2 5 2c-.5 1-.5 3-.3 4C3 7 3 9 3 11c0 3 2 5 5 5 .7 0 1 1 1 2v3',
+};
+---
+<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>

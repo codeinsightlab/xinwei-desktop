@@ -1,0 +1,46 @@
+---
+import { site } from '../content/site';
+import '../styles/site.css';
+interface Props { title?: string; noindex?: boolean; }
+const { title=site.title, noindex=false } = Astro.props;
+const preventIndex = noindex || import.meta.env.XINWEI_INDEXABLE !== '1';
+const structuredData = JSON.stringify({
+  '@context':'https://schema.org',
+  '@graph':[
+    {'@type':'WebSite','@id':`${site.origin}/#website`,url:site.origin,name:site.name,inLanguage:'zh-CN',description:site.description},
+    {'@type':'WebPage','@id':`${site.origin}/#webpage`,url:site.origin,name:site.title,inLanguage:'zh-CN',description:site.description,isPartOf:{'@id':`${site.origin}/#website`},about:{'@id':`${site.origin}/#app`}},
+    {'@type':'SoftwareApplication','@id':`${site.origin}/#app`,name:site.name,url:site.origin,applicationCategory:'UtilitiesApplication',operatingSystem:'Windows x64; macOS 12+ Apple Silicon',description:'个人使用的桌面工资估算与轻幽默互动工具。公开下载准备中，不承担考勤或薪资结算。',inLanguage:'zh-CN'},
+    {'@type':'FAQPage','@id':`${site.origin}/#faq`,inLanguage:'zh-CN',mainEntity:site.faq.map(item=>({'@type':'Question',name:item.q,acceptedAnswer:{'@type':'Answer',text:item.a}}))},
+  ],
+}).replace(/</g,'\\u003c');
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#141615" />
+    <meta name="deployment-revision" content={import.meta.env.XINWEI_REVISION || 'local'} />
+    <title>{title}</title>
+    <meta name="description" content={site.description} />
+    <meta name="robots" content={preventIndex?'noindex, nofollow':'index, follow, max-image-preview:large'} />
+    <link rel="canonical" href={new URL(Astro.url.pathname,site.origin)} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={site.description} />
+    <meta property="og:url" content={new URL(Astro.url.pathname,site.origin).href} />
+    <meta property="og:image" content={`${site.origin}/og.png`} />
+    <meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="薪慰 Xinwei：上班已经够苦了，看看钱涨，多少有点安慰。" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={site.description} />
+    <meta name="twitter:image" content={`${site.origin}/og.png`} />
+    <meta name="twitter:image:alt" content="薪慰 Xinwei 桌面工资估算搭子" />
+    {!noindex && <script type="application/ld+json" is:inline set:html={structuredData} />}
+  </head>
+  <body><slot /></body>
+</html>

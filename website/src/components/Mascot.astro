@@ -1,0 +1,5 @@
+---
+interface Props { pose?: string; class?: string; eager?: boolean; }
+const { pose='working', class:className='', eager=false } = Astro.props;
+---
+<img class:list={['mascot',className]} src={`/assets/mascot/${pose}.svg`} width="240" height="180" alt="" aria-hidden="true" loading={eager?'eager':'lazy'} decoding="async" />

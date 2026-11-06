@@ -1,0 +1,26 @@
+---
+import Icon from './Icon.astro';
+import Mascot from './Mascot.astro';
+---
+<div class="demo-composition">
+  <p class="sticker">别太为难自己。</p>
+  <section id="salary-demo" class="demo-window" aria-label="虚构工资演示">
+    <div class="window-title">
+      <span class="window-brand"><img src="/assets/mascot/welcome.svg" width="32" height="24" alt="" />薪慰</span>
+      <span class="demo-badge">虚构演示</span>
+      <button class="icon-button privacy-button" data-privacy aria-pressed="false" aria-label="隐藏演示金额" disabled><Icon name="eye" /></button>
+    </div>
+    <div class="window-body">
+      <p class="eyebrow">今日已记录估算</p>
+      <div id="demo-money" class="salary" aria-label="今日估算 450.00 元"><span class="currency" aria-hidden="true">¥</span><span id="money-digits" aria-hidden="true">450.00</span></div>
+      <div class="demo-status"><span class="status-dot" aria-hidden="true"></span><span id="demo-status">工作中 · 演示未播放</span></div>
+      <div class="progress-row"><div id="demo-progress" class="progress-track" role="progressbar" aria-label="今日计划进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="56.25"><span style="width:56.25%"></span></div><span id="demo-percent">56.25%</span></div>
+      <div class="demo-meta"><span>演示时刻 <strong id="demo-time">14:30</strong></span><span id="time-caption">距下班 <strong id="demo-countdown">03:30</strong></span></div>
+      <div class="demo-actions"><button class="button primary" id="demo-play" disabled><span class="play-symbol" aria-hidden="true">▶</span><span id="play-label">开始演示</span></button><button class="button outline" id="demo-finish" disabled>试试收工</button></div>
+      <div class="demo-bottom"><span>2026-11-03 · 北京时间 · 1×</span><button class="text-button" id="demo-reset" disabled>重置</button></div>
+      <p class="demo-feedback" id="demo-feedback"></p>
+    </div>
+  </section>
+  <p class="demo-disclaimer">按设置估算，不代表实际到账。</p>
+  <Mascot pose="hero" class="hero-mascot" eager />
+</div>

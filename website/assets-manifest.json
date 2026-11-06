@@ -1,0 +1,18 @@
+{
+  "source": "../src/assets/mascot-work.svg",
+  "generator": "scripts/mascots.mjs",
+  "description": "保留原仓库角色主体路径、线条和面部结构，制作官网矢量变体。不是概念 PNG 的无损矢量还原。",
+  "format": "local SVG",
+  "viewBox": [0, 0, 240, 180],
+  "poses": {
+    "working": "复用原工作姿态及电脑路径，暖白填色与统一画布",
+    "resting": "相同轮廓，闭眼与休息手部",
+    "offduty": "相同轮廓，伸展手部",
+    "welcome": "相同轮廓，欢迎手部",
+    "quiet": "相同轮廓，中性表情与安静手部",
+    "hero": "相同轮廓，新增咖啡杯与放射短线"
+  },
+  "decorations": ["underline.svg", "rays.svg", "sticker.svg"],
+  "animation": "whole-image opacity and small position transitions only; no independent joint animation",
+  "reviewedRendering": "180x135 at 1x and 360x270 at 2x rasterized from SVG; browser itself checked at DPR 1"
+}
