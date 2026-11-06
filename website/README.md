@@ -27,7 +27,7 @@ npm run preview
 - `src/lib/demo.ts`：注入单调时钟；按已过工作秒数向下取整到分。默认14:30静止，开始后1×播放。午休不增加；18:00封顶但不自动收工；23:59:59停止当日演示。
 - `src/lib/client.ts`：播放器、环境暂停、单页隐私、焦点及场景呈现。不写Cookie或Storage，不请求业务接口。
 - `src/content/scenarios.ts`：五个场景、11个回复分支及各自跳过结果；没有网络对话或回复计时队列。
-- `src/content/site.ts`：页面正文、七个FAQ、下载配置与托管入口。下载状态目前为pending，不能以本地包替代公开附件。
+- `src/content/site.ts`：页面正文、七个FAQ、下载配置与托管入口。下载配置仅使用已公开并匿名下载校验的Release附件，包含版本、SHA-256和签名状态。
 - `src/layouts/Base.astro`：语义元信息、OG/Twitter、WebSite/WebPage/SoftwareApplication/FAQPage JSON-LD；不编造评分、价格、版本或下载地址。结构化数据不保证搜索引擎展示富结果。
 
 初始450.00元是已经开工日的暂停样例；1250.00元月合计模型由先前记录800元加当日450元构成，界面未额外堆叠月合计。
@@ -98,4 +98,6 @@ deploy脚本先只读核对凭据、zone与账号、目标Worker、Custom Domain
 
 浏览器交互需另外实测，HTTP检查不替代浏览器验证。回滚可重新部署先前已验证的Worker版本，不需要回滚桌面应用或数据。Actions固定到核实的提交，依赖使用独立锁文件。
 
-公开项目仓库与安装包分开管理：公开仓库不等于已有可匿名下载的Release；安装包需核验真实附件后，才将 `src/content/site.ts` 中的平台状态从pending改为available。
+当前提供1.2.1预览版：Windows x64 NSIS和macOS Apple Silicon DMG。两个附件在GitHub Release公开后，已通过匿名完整下载、大小与SHA-256核对，才接入 `src/content/site.ts`。未代码签名/公证和原生交互未验收的边界在Release及下载区说明。
+
+后续发布先递增并校验版本、提交修复；通过Actions的 `Build Windows installer` 指定完整源码SHA和版本，在Windows原生环境构建并测试。macOS按同一桌面源码构建并核对版本、架构和DMG完整性。两个平台附件、构建回执及 `SHA256SUMS` 齐备后再公开Release；不得覆盖同名附件交付不同代码。匿名验证下载后更新版本、URL、校验值、日期和说明，推送main自动更新官网。线上检查会同时确认两个下载入口对应当前构建且附件可公开访问。

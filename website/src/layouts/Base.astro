@@ -9,7 +9,7 @@ const structuredData = JSON.stringify({
   '@graph':[
     {'@type':'WebSite','@id':`${site.origin}/#website`,url:site.origin,name:site.name,inLanguage:'zh-CN',description:site.description},
     {'@type':'WebPage','@id':`${site.origin}/#webpage`,url:site.origin,name:site.title,inLanguage:'zh-CN',description:site.description,isPartOf:{'@id':`${site.origin}/#website`},about:{'@id':`${site.origin}/#app`}},
-    {'@type':'SoftwareApplication','@id':`${site.origin}/#app`,name:site.name,url:site.origin,applicationCategory:'UtilitiesApplication',operatingSystem:'Windows x64; macOS 12+ Apple Silicon',description:'个人使用的桌面工资估算与轻幽默互动工具。公开下载准备中，不承担考勤或薪资结算。',inLanguage:'zh-CN'},
+    {'@type':'SoftwareApplication','@id':`${site.origin}/#app`,name:site.name,url:site.origin,applicationCategory:'UtilitiesApplication',operatingSystem:'Windows x64; macOS 12+ Apple Silicon',description:'个人使用的桌面工资估算与轻幽默互动工具。Windows与macOS Apple Silicon预览版可下载，不承担考勤或薪资结算。',inLanguage:'zh-CN'},
     {'@type':'FAQPage','@id':`${site.origin}/#faq`,inLanguage:'zh-CN',mainEntity:site.faq.map(item=>({'@type':'Question',name:item.q,acceptedAnswer:{'@type':'Answer',text:item.a}}))},
   ],
 }).replace(/</g,'\\u003c');

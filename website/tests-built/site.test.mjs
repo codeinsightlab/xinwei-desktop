@@ -4,10 +4,16 @@ import {readFile,readdir} from 'node:fs/promises';
 const root=new URL('../dist/',import.meta.url);
 const html=await readFile(new URL('index.html',root),'utf8');
 
-test('primary text, FAQ and honest pending state are static HTML',()=>{
-  for(const text of ['上班已经够苦了','显示的钱会真的到账吗','为什么要点击开工','公开下载准备中'])assert.ok(html.includes(text));
-  assert.equal((html.match(/data-download-status="pending"/g)??[]).length,2);
-  assert.ok(!html.includes('href="#"'));assert.ok(!html.includes('download-link'));
+test('public downloads expose the correct platform artifacts, version and signing status in static HTML',()=>{
+  for(const text of ['上班已经够苦了','显示的钱会真的到账吗','为什么要点击开工','1.2.1 预览版','未代码签名','公证'])assert.ok(html.includes(text));
+  assert.equal((html.match(/data-download-status="available"/g)??[]).length,2);
+  assert.ok(!html.includes('href="#"'));assert.ok(!html.includes('公开下载准备中'));
+  const links=[...html.matchAll(/class="download-link" href="([^"]+)"/g)].map(match=>match[1]);
+  assert.deepEqual(links,[
+    'https://github.com/codeinsightlab/xinwei-desktop/releases/download/v1.2.1/Xinwei_1.2.1_windows-x64-setup.exe',
+    'https://github.com/codeinsightlab/xinwei-desktop/releases/download/v1.2.1/Xinwei_1.2.1_macos-arm64.dmg',
+  ]);
+  assert.equal((html.match(/SHA-256: [a-f0-9]{64}/g)??[]).length,2);
 });
 test('interactive controls start disabled; no fake system window controls',()=>{
   assert.match(html,/<button[^>]*id="demo-play"[^>]*disabled/);

@@ -60,8 +60,8 @@ import { scenes } from '../content/scenarios';
     <section id="download" class="download-section wrap" aria-labelledby="download-title">
       <div class="download-intro"><p class="section-kicker">03 / TAKE IT EASY</p><h2 id="download-title">把这一点安慰，<br />放到桌面上。</h2><Mascot pose="hero" /></div>
       <div class="download-options">
-        {downloads.map(item=><article class="download-card" data-download-status={item.status}><Icon name={item.platform==='windows-x64'?'windows':'mac'} /><div><h3>{item.label}</h3><p>{item.status==='pending'?'公开下载准备中':item.status==='unavailable'?'暂不可用':''}</p><small>{item.requirements}</small>{item.status==='available' && item.url && <a class="download-link" href={item.url}>下载 {item.version}<Icon name="arrow" /></a>}{item.checksum && <small>SHA-256: {item.checksum}</small>}</div></article>)}
-        <p class="download-note">安装包准备好后，<br />会在这里放上真实入口。</p>
+        {downloads.map(item=><article class="download-card" data-download-status={item.status}><Icon name={item.platform==='windows-x64'?'windows':'mac'} /><div><h3>{item.label}</h3><p>{item.status==='pending'?'公开下载准备中':item.status==='unavailable'?'暂不可用':''}</p><small>{item.requirements}</small>{item.status==='available' && item.url && <a class="download-link" href={item.url} aria-label={`下载薪慰 ${item.version}，${item.label}`}>下载 {item.version}<Icon name="arrow" /></a>}{item.notice && <p class="download-notice">{item.notice}</p>}{item.checksum && <small class="download-checksum">SHA-256: {item.checksum}</small>}</div></article>)}
+        <p class="download-note">1.2.1 预览版 · <a href="https://github.com/codeinsightlab/xinwei-desktop/releases/tag/v1.2.1">发布说明与安装须知 ↗</a></p>
         <a class="author-link" href={site.repository} target="_blank" rel="noopener noreferrer"><Icon name="github" />App 项目仓库 <span aria-hidden="true">↗</span></a>
       </div>
       <div class="faq"><h3 class="sr-only">常见问题</h3>{site.faq.map(item=><details><summary><span>{item.q}</span><span class="chevron" aria-hidden="true">›</span></summary><p>{item.a}</p></details>)}</div>

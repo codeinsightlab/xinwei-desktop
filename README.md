@@ -9,7 +9,13 @@
 
 ## 下载与官网
 
-目前尚未发布公开安装包，Windows x64 与 macOS Apple Silicon 均为**公开下载准备中**。发布后可在 [Releases](https://github.com/codeinsightlab/xinwei-desktop/releases) 查看版本说明和实际附件。
+[1.2.1 预览版](https://github.com/codeinsightlab/xinwei-desktop/releases/tag/v1.2.1)已公开发布，官网提供两个平台的下载入口。
+
+- [Windows x64 安装包](https://github.com/codeinsightlab/xinwei-desktop/releases/download/v1.2.1/Xinwei_1.2.1_windows-x64-setup.exe)
+- [macOS Apple Silicon DMG](https://github.com/codeinsightlab/xinwei-desktop/releases/download/v1.2.1/Xinwei_1.2.1_macos-arm64.dmg)
+- [SHA-256 校验值与构建回执](https://github.com/codeinsightlab/xinwei-desktop/releases/tag/v1.2.1)
+
+Windows未代码签名；macOS未完成Developer ID签名与公证，系统可能提示未知发布者或阻止打开。请先阅读Release中的安装与验证范围说明。
 
 - [App 项目仓库](https://github.com/codeinsightlab/xinwei-desktop)：桌面应用源码、产品说明与问题反馈入口。
 - 官网：[xinwei.learnaiwithcode.com](https://xinwei.learnaiwithcode.com)，提供虚构工资与轻互动演示。
@@ -111,7 +117,7 @@ macOS Apple Silicon 构建（在 Mac 上执行）：
 npm run desktop:build:mac
 ```
 
-产物位于 `src-tauri/target/aarch64-apple-darwin/release/bundle/macos/薪慰.app` 和同级 `dmg/` 目录。将 DMG 中的应用拖入“应用程序”即可安装。不生成 Intel 或 Universal 包；源码也拒绝 macOS x86_64 构建。没有配置 Developer ID 签名和公证的本地包只用于本机开发验证，不能视为已完成正式分发。
+产物位于 `src-tauri/target/aarch64-apple-darwin/release/bundle/macos/薪慰.app` 和同级 `dmg/` 目录。将 DMG 中的应用拖入“应用程序”即可安装。不生成 Intel 或 Universal 包；源码也拒绝 macOS x86_64 构建。当前公开包属于预览版，未完成 Developer ID 签名和公证，不能视为已完成正式签名分发。
 
 macOS 配置位于 `~/Library/Application Support/io.xinwei.desktop/`，共用原有版本检查、原子保存和备份流程，不迁移或生成 Windows 历史记录。[macOS 适配与验证记录](docs/reviews/2026-11-04-macos-apple-silicon-review.md)列出实测与待验收范围。
 
