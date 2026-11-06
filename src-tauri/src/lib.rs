@@ -2,6 +2,7 @@ mod config;
 mod engagement;
 mod window_platform;
 mod app_behavior;
+mod tray_sync;
 #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
 compile_error!("薪慰 macOS 版本仅支持 Apple Silicon，请使用 aarch64-apple-darwin 目标。");
 use config::{Config, Store};
@@ -30,6 +31,7 @@ struct Desktop {
     position_dirty: AtomicBool,
     finalizing: AtomicBool,
     behavior: Mutex<app_behavior::ApplicationBehavior>,
+    tray_menu_sync: Mutex<tray_sync::MenuSync>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,9 +46,6 @@ fn error_notice(app: &AppHandle, message: &str) {
 }
 fn show(app: &AppHandle, label: &str, focus: bool) -> Result<(), String> {
     let w = app.get_webview_window(label).ok_or("窗口无法创建")?;
-    if label == "widget" {
-        clamp_position(&w);
-    }
     w.show().map_err(|_| "窗口无法显示")?;
     if label == "widget" {
         let _ = w.emit("widget-visibility-changed", true);
@@ -316,10 +315,23 @@ fn menubar_icon() -> tauri::image::Image<'static> {
 }
 fn sync_tray(app: &AppHandle, c: &Config) {
     if let Some(tray) = app.tray_by_id("xinwei") {
-        if let Ok(menu) = tray_menu(app, c) {
-            let _ = tray.set_menu(Some(menu));
-        }
+        let state=app.state::<Desktop>();
+        match state.tray_menu_sync.lock() {
+            Ok(mut sync) => {
+                if let Err(error)=sync.sync(menu_state(c),||{
+                    let menu=tray_menu(app,c)?;
+                    tray.set_menu(Some(menu))
+                }) {
+                    eprintln!("tray menu synchronization failed; retry on next sync: {error}");
+                    error_notice(app,"后台菜单同步失败，将在下次操作时重试。");
+                }
+            }
+            Err(error)=>eprintln!("tray menu synchronization lock failed: {error}"),
+        };
     }
+}
+fn menu_state(c:&Config)->tray_sync::MenuState {
+    tray_sync::MenuState{pinned:c.preferences.always_on_top,private:c.preferences.privacy_mode}
 }
 fn tray_menu(app: &AppHandle, c: &Config) -> tauri::Result<Menu<tauri::Wry>> {
     let visible = MenuItem::with_id(app, "show", "显示桌面小窗", true, None::<&str>)?;
@@ -343,32 +355,6 @@ fn tray_menu(app: &AppHandle, c: &Config) -> tauri::Result<Menu<tauri::Wry>> {
     let settings = MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出薪慰", true, None::<&str>)?;
     Menu::with_items(app, &[&visible, &hide, &pin, &privacy, &settings, &quit])
-}
-fn clamp_position(w: &tauri::WebviewWindow) {
-    if let (Ok(pos), Ok(size), Ok(monitors)) =
-        (w.outer_position(), w.outer_size(), w.available_monitors())
-    {
-        let visible = monitors.iter().any(|m| {
-            let area = m.work_area();
-            let p = &area.position;
-            let s = &area.size;
-            pos.x >= p.x
-                && pos.y >= p.y
-                && pos.x as i64 + size.width as i64 <= p.x as i64 + s.width as i64
-                && pos.y as i64 + size.height as i64 <= p.y as i64 + s.height as i64
-        });
-        if !visible {
-            if let Ok(Some(m)) = w.primary_monitor() {
-                let area = m.work_area();
-                let p = &area.position;
-                let s = &area.size;
-                let _ = w.set_position(tauri::PhysicalPosition::new(
-                    p.x + s.width.saturating_sub(size.width + 24) as i32,
-                    p.y + 40,
-                ));
-            }
-        }
-    }
 }
 fn save_position(app: &AppHandle) {
     if let Err(e)=save_position_checked(app){eprintln!("save-window-position failed: {e}");}
@@ -432,6 +418,7 @@ pub fn run() {
                 position_dirty: AtomicBool::new(false),
                 finalizing: AtomicBool::new(false),
                 behavior: Mutex::new(app_behavior::ApplicationBehavior::default()),
+                tray_menu_sync: Mutex::new(tray_sync::MenuSync::default()),
             });
             window_platform::create_windows(app.handle())?;
             window_platform::configure(app.handle())?;
@@ -479,6 +466,12 @@ pub fn run() {
             });
             let tray = tray
                 .on_menu_event(|app, event| {
+                    // Native checkmarks may toggle before the preference transaction succeeds.
+                    if matches!(event.id.as_ref(), "pin" | "privacy") {
+                        if let Ok(mut sync)=app.state::<Desktop>().tray_menu_sync.lock() {
+                            sync.invalidate();
+                        }
+                    }
                     let result = match event.id.as_ref() {
                         "show" => app_behavior::show_widget(app),
                         "settings" => app_behavior::open_settings(app),
@@ -520,6 +513,14 @@ pub fn run() {
                 })
                 .build(app);
             let tray_ok = tray.is_ok();
+            if tray_ok {
+                // The initial menu was already installed by the successful tray build.
+                if let Ok(mut sync)=app.state::<Desktop>().tray_menu_sync.lock() {
+                    let _=sync.sync(menu_state(&config),||Ok::<_,()>(()));
+                }
+            } else if let Err(error)=&tray {
+                eprintln!("tray initialization failed: {error}");
+            }
             app.state::<Desktop>()
                 .tray_ok
                 .store(tray_ok, Ordering::Relaxed);
@@ -550,11 +551,6 @@ pub fn run() {
                     }
                     if state.position_dirty.swap(false, Ordering::Relaxed) {
                         save_position(&handle);
-                    }
-                    if let Some(w) = handle.get_webview_window("widget") {
-                        if w.is_visible().unwrap_or(false) {
-                            clamp_position(&w);
-                        }
                     }
                     let now = SystemTime::now();
                     let elapsed = instant.elapsed().as_secs_f64();
