@@ -53,3 +53,5 @@ https://github.com/codeinsightlab/xinwei-desktop/actions/runs/42170261326 全部
 锁文件补强：已核对仓库实际Tauri CLI --help支持通过`--`向Cargo传参；在原生构建也显式传入--locked，防止先构建时隐式更新锁文件而使之后的锁定测试失去检查作用。将随验收回执提交并再次验证双平台。
 
 首轮自动推送验收：9d977f0推送后无需手动调度，Desktop checks 42171905394由push触发，macOS Apple Silicon与Windows x64两个任务均完整成功，包含工具链、版本、前端测试、原生debug构建与Rust测试，缓存保存也通过。Mac实际uname断言通过。GitHub仅提示ARM runner容量可能导致排队，非任务失败。随后补强构建--locked并与回执一并推送，复核最终配置及缓存命中路径。
+
+最终配置验收：cc4cd96推送自动触发42172509559，两平台均success；macOS ARM64守卫、锁定原生构建、前端90项及Rust15项均通过。两端缓存命中路径通过，Windows整任务1分35秒。验证链接：https://github.com/codeinsightlab/xinwei-desktop/actions/runs/42172509559 。本次后续收口仅追加此文档回执，不再修改工作流或业务代码；再次push仍会按新策略自动检查两端。
