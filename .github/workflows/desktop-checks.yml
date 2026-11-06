@@ -62,6 +62,6 @@ jobs:
       # The CLI prepares per-platform features before direct Cargo commands.
       # Debug, no-bundle checks avoid signing, installer creation and publishing.
       - name: Build native desktop and type-check frontend
-        run: npm run desktop:build -- --debug --no-bundle --ci --target ${{ matrix.target }}
+        run: npm run desktop:build -- --debug --no-bundle --ci --target ${{ matrix.target }} -- --locked
       - name: Test native Rust library
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }} --lib -- --test-threads=1

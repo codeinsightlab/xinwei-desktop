@@ -49,3 +49,7 @@ https://github.com/codeinsightlab/xinwei-desktop/actions/runs/42170261326 全部
 工具链固定Node22.23.1和本机已验证的Rust1.98.0；每端执行npm ci、版本检查、前端单元、Tauri CLI原生debug/no-bundle构建及指定target的Cargo锁定/串行测试。保留CLI先于Cargo顺序；不打安装包、签名或发布。Rust缓存采用官方actions/cache v5固定提交caa296126883cff596d87d8935842f9db880ef25（已核对Node24），按OS/target/Rust/依赖和配置键隔离。任务超时30分钟，fail-fast=false，同ref旧检查可取消。原有固定源码安装包和官网发布工作流保持原样。
 
 本节仅改CI及文档，不改业务代码、依赖或应用版本。实际远端两平台结果随后追加。
+
+锁文件补强：已核对仓库实际Tauri CLI --help支持通过`--`向Cargo传参；在原生构建也显式传入--locked，防止先构建时隐式更新锁文件而使之后的锁定测试失去检查作用。将随验收回执提交并再次验证双平台。
+
+首轮自动推送验收：9d977f0推送后无需手动调度，Desktop checks 42171905394由push触发，macOS Apple Silicon与Windows x64两个任务均完整成功，包含工具链、版本、前端测试、原生debug构建与Rust测试，缓存保存也通过。Mac实际uname断言通过。GitHub仅提示ARM runner容量可能导致排队，非任务失败。随后补强构建--locked并与回执一并推送，复核最终配置及缓存命中路径。
